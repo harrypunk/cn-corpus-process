@@ -7,8 +7,9 @@
  * unusable entries.
  */
 
-import type { AuthorRecord, AuthorSource, RawRecord } from "../types.ts";
+import type { AuthorRecord, AuthorSource, Maybe, RawRecord } from "../types.ts";
 import { canonicalizeAuthor, ANONYMOUS } from "../normalize/author.ts";
+import { asString } from "../normalize/record.ts";
 import { cleanLine } from "../normalize/text.ts";
 
 export interface AuthorFileConfig {
@@ -20,11 +21,10 @@ export interface AuthorFileConfig {
 }
 
 /** Pure: raw author entry -> AuthorRecord, or null when unusable. */
-export function toAuthorRecord(config: AuthorFileConfig, item: RawRecord): AuthorRecord | null {
-  const name = canonicalizeAuthor(item.name as string | undefined);
+export function toAuthorRecord(config: AuthorFileConfig, item: RawRecord): Maybe<AuthorRecord> {
+  const name = canonicalizeAuthor(asString(item.name));
   if (name === ANONYMOUS) return null;
-  const rawDesc = item[config.descField];
-  const description = typeof rawDesc === "string" ? cleanLine(rawDesc) : "";
+  const description = cleanLine(asString(item[config.descField]) ?? "");
   return {
     name,
     dynasty: config.dynasty,

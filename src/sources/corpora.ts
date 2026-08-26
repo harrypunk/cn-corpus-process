@@ -1,13 +1,13 @@
 /**
- * Registry of all upstream corpora. Each entry pairs a JsonCorpusSource
+ * Registry of all upstream corpora. Each entry pairs a JsonCorpusConfig
  * (which files to read) with a FieldMapping (how to interpret the records).
  * Adding a new corpus = adding one entry here.
  */
 
 import type { FieldMapping } from "../normalize/record.ts";
-import { JsonCorpusSource, type JsonCorpusConfig } from "./json-corpus.ts";
+import type { JsonCorpusConfig } from "./json-corpus.ts";
 import { JsonAuthorSource, type AuthorFileConfig } from "./json-authors.ts";
-import type { AuthorSource, PoemSource } from "../types.ts";
+import type { AuthorSource } from "../types.ts";
 
 export interface CorpusEntry {
   corpus: JsonCorpusConfig;
@@ -122,15 +122,6 @@ const AUTHOR_FILES: AuthorFileConfig[] = [
   },
 ];
 
-export function poemSources(rootDir: string): PoemSource[] {
-  return corpusEntries(rootDir).map((e) => new JsonCorpusSource(e.corpus));
-}
-
 export function authorSources(rootDir: string): AuthorSource[] {
   return AUTHOR_FILES.map((c) => new JsonAuthorSource(c, rootDir));
-}
-
-/** Look up the FieldMapping for a given corpus name. */
-export function mappingFor(rootDir: string, sourceName: string): FieldMapping | undefined {
-  return corpusEntries(rootDir).find((e) => e.corpus.name === sourceName)?.mapping;
 }

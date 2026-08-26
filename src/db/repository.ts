@@ -10,7 +10,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { AuthorRecord, PoemRecord } from "../types.ts";
+import type { AuthorRecord, Maybe, PoemRecord } from "../types.ts";
 import * as schema from "./schema.ts";
 import { SCHEMA_SQL } from "./schema.ts";
 
@@ -57,7 +57,7 @@ export class PoetryRepository {
   }
 
   /** Resolve (name, dynasty) to an author id, creating the row if needed. */
-  authorId(name: string, dynasty: string | null): number {
+  authorId(name: string, dynasty: Maybe<string>): number {
     const key = this.key(name, dynasty);
     const cached = this.authorIdCache.get(key);
     if (cached !== undefined) return cached;
@@ -88,12 +88,12 @@ export class PoetryRepository {
     this.sqlite.close();
   }
 
-  private key(name: string, dynasty: string | null): string {
+  private key(name: string, dynasty: Maybe<string>): string {
     return `${name}${dynasty}`;
   }
 
   /** eq() with NULL semantics: `dynasty IS NULL` when dynasty is null. */
-  private dynastyEq(dynasty: string | null) {
+  private dynastyEq(dynasty: Maybe<string>) {
     return dynasty === null ? isNull(schema.authors.dynasty) : eq(schema.authors.dynasty, dynasty);
   }
 }

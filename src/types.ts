@@ -9,18 +9,28 @@
 /** A raw record as parsed from an upstream JSON file, shape unknown. */
 export type RawRecord = Record<string, unknown>;
 
+/** Nullable value; used instead of bare `T | null` unions across the codebase. */
+export type Maybe<T> = T | null;
+
 /** Why a raw record was dropped during normalization. */
-export type DropReason =
-  | "empty_content"
-  | "empty_title"
-  | "invalid_chars"
-  | "duplicate"
-  | "not_an_object";
+export enum DropReason {
+  EmptyContent = "empty_content",
+  EmptyTitle = "empty_title",
+  InvalidChars = "invalid_chars",
+  Duplicate = "duplicate",
+  NotAnObject = "not_an_object",
+}
+
+/**
+ * Outcome of normalizing one raw record: either the cleaned PoemRecord or
+ * the reason it was dropped.
+ */
+export type NormalizeResult = { ok: true; record: PoemRecord } | { ok: false; reason: DropReason };
 
 export interface PoemRecord {
   /** Canonical author name; "佚名" when unknown. */
   author: string;
-  dynasty: string | null;
+  dynasty: Maybe<string>;
   title: string;
   /** Paragraphs joined with "\n", already text-cleaned. */
   content: string;
@@ -30,8 +40,8 @@ export interface PoemRecord {
 
 export interface AuthorRecord {
   name: string;
-  dynasty: string | null;
-  description: string | null;
+  dynasty: Maybe<string>;
+  description: Maybe<string>;
 }
 
 /**

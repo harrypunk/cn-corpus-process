@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DropReason } from "../types.ts";
 import { canonicalizeAuthor, ANONYMOUS } from "./author.ts";
 import { Deduper } from "./dedup.ts";
 import { cleanLine, cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
@@ -83,17 +84,17 @@ describe("normalizeRecord", () => {
 
   test("drops empty content", () => {
     const r = normalizeRecord({ author: "李白", title: "x", paragraphs: [] }, map);
-    expect(r).toEqual({ ok: false, reason: "empty_content" });
+    expect(r).toEqual({ ok: false, reason: DropReason.EmptyContent });
   });
 
   test("drops missing title", () => {
     const r = normalizeRecord({ author: "李白", paragraphs: ["床前明月光"] }, map);
-    expect(r).toEqual({ ok: false, reason: "empty_title" });
+    expect(r).toEqual({ ok: false, reason: DropReason.EmptyTitle });
   });
 
   test("drops corrupted content", () => {
     const r = normalizeRecord({ author: "李白", title: "x", paragraphs: ["千山\uFFFD黑"] }, map);
-    expect(r).toEqual({ ok: false, reason: "invalid_chars" });
+    expect(r).toEqual({ ok: false, reason: DropReason.InvalidChars });
   });
 
   test("title fallback and fixed author", () => {
@@ -120,7 +121,7 @@ describe("makeClassifier", () => {
     const classify = makeClassifier(map, new Deduper());
     const raw = { author: "李白", title: "静夜思", paragraphs: ["床前明月光"] };
     expect(classify(raw).ok).toBe(true);
-    expect(classify(raw)).toEqual({ ok: false, reason: "duplicate" });
+    expect(classify(raw)).toEqual({ ok: false, reason: DropReason.Duplicate });
   });
 
   test("shared deduper rejects across mappings", () => {
@@ -129,6 +130,6 @@ describe("makeClassifier", () => {
     const b = makeClassifier({ ...map, source: "other" }, dedup);
     const raw = { author: "李白", title: "静夜思", paragraphs: ["床前明月光"] };
     expect(a(raw).ok).toBe(true);
-    expect(b(raw)).toEqual({ ok: false, reason: "duplicate" });
+    expect(b(raw)).toEqual({ ok: false, reason: DropReason.Duplicate });
   });
 });

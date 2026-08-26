@@ -3,6 +3,8 @@
  * Bun auto-loads .env — copy .env.example to .env and adjust.
  */
 
+import type { Maybe } from "./types.ts";
+
 export interface EtlConfig {
   /** Root directory of the upstream chinese-poetry checkout. Required. */
   root: string;
@@ -11,7 +13,7 @@ export interface EtlConfig {
   /** Stats report output path. */
   report: string;
   /** Restrict the run to a single corpus (null = all). */
-  source: string | null;
+  source: Maybe<string>;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): EtlConfig {

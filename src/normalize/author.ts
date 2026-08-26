@@ -4,6 +4,8 @@
  * authors row.
  */
 
+import type { Maybe } from "../types.ts";
+
 export const ANONYMOUS = "佚名";
 
 const ANONYMOUS_VARIANTS = new Set([
@@ -17,7 +19,7 @@ const ANONYMOUS_VARIANTS = new Set([
   "阙名",
 ]);
 
-export function canonicalizeAuthor(name: string | null | undefined): string {
+export function canonicalizeAuthor(name: Maybe<string>): string {
   const trimmed = (name ?? "").replace(/\r/g, "").trim();
   return ANONYMOUS_VARIANTS.has(trimmed) ? ANONYMOUS : trimmed;
 }

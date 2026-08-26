@@ -3,6 +3,8 @@
  * testable; `cleanParagraphs` composes them for poem bodies.
  */
 
+import type { Maybe } from "../types.ts";
+
 /** Unicode replacement char — a telltale of upstream encoding corruption. */
 export const REPLACEMENT_CHAR = "\uFFFD";
 
@@ -29,13 +31,13 @@ export function cleanLine(line: string): string {
  * Clean a paragraph list: clean each line, drop lines that became empty.
  * Returns null when nothing survives (caller should drop the record).
  */
-export function cleanParagraphs(paragraphs: string[]): string[] | null {
+export function cleanParagraphs(paragraphs: string[]): Maybe<string[]> {
   const cleaned = paragraphs.map(cleanLine).filter((l) => l.length > 0);
   return cleaned.length > 0 ? cleaned : null;
 }
 
 /** Clean a title; returns null when the result is empty. */
-export function cleanTitle(title: string): string | null {
+export function cleanTitle(title: string): Maybe<string> {
   const t = cleanLine(title);
   return t.length > 0 ? t : null;
 }

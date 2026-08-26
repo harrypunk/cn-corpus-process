@@ -7,7 +7,8 @@ import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadConfig } from "./config.ts";
 import { Pipeline, createRepository } from "./pipeline.ts";
-import { authorSources, corpusEntries, mappingFor, poemSources } from "./sources/corpora.ts";
+import { authorSources, corpusEntries } from "./sources/corpora.ts";
+import { JsonCorpusSource } from "./sources/json-corpus.ts";
 import { StatsCollector } from "./stats.ts";
 
 async function main(): Promise<void> {
@@ -26,12 +27,8 @@ async function main(): Promise<void> {
       throw new Error(`no corpus matched ETL_SOURCE=${config.source}`);
     }
     for (const entry of entries) {
-      const mapping = mappingFor(config.root, entry.corpus.name);
-      if (!mapping) throw new Error(`no mapping for ${entry.corpus.name}`);
       console.log(`processing ${entry.corpus.name} ...`);
-      const source = poemSources(config.root).find((s) => s.name === entry.corpus.name);
-      if (!source) throw new Error(`no source for ${entry.corpus.name}`);
-      await pipeline.runPoems(source, mapping);
+      await pipeline.runPoems(new JsonCorpusSource(entry.corpus), entry.mapping);
     }
   } finally {
     repo.close();
