@@ -44,11 +44,10 @@ Layers, each with one responsibility:
   `text.ts` (line cleaning), `author.ts` (佚名 canonicalization),
   `dedup.ts` (content-hash dedup), `record.ts` (RawRecord → PoemRecord via
   a `FieldMapping`).
-- `src/db/` — `schema.ts` (Drizzle table definitions + one-shot DDL) and
-  `repository.ts` (typed queries via [Drizzle ORM](https://orm.drizzle.team)
-  over bun:sqlite: author upsert, batched multi-row poem inserts). The
-  repository is the only file that touches SQL, so swapping SQLite for
-  Postgres/MySQL later means swapping the Drizzle driver, not the pipeline.
+- `src/db/` — `schema/` (per-dialect Drizzle table definitions) and
+  `store.ts` (the `PoetryStore` interface + sqlite/postgres/mysql
+  implementations via [Drizzle ORM](https://orm.drizzle.team)). This is the
+  only module that touches SQL; the pipeline depends only on the interface.
 - `src/pipeline.ts` — orchestrator; composes an [Effect](https://effect.website)
   `Stream` (pure `map`/`filterMap` transforms, side effects confined to
   `tap`s and the final batched-transaction sink via `grouped` +
@@ -73,12 +72,41 @@ flags:
 | variable       | required | default            | meaning |
 |----------------|----------|--------------------|---------|
 | `POETRY_ROOT`  | yes      | —                  | root of your chinese-poetry checkout |
-| `ETL_DB`       | no       | `dist/poetry.db`   | output SQLite path |
+| `ETL_DIALECT`  | no       | `sqlite`           | `sqlite` / `postgres` / `mysql` |
+| `ETL_DB`       | sqlite   | `dist/poetry.db`   | output SQLite path |
+| `DATABASE_URL` | pg/mysql | —                  | e.g. `postgres://user:pass@host/db`, `mysql://user:pass@host/db` |
 | `ETL_REPORT`   | no       | `dist/report.json` | stats report path |
 | `ETL_SOURCE`   | no       | (all corpora)      | run a single corpus, e.g. `shijing` |
 
-Every run rebuilds the database from scratch (idempotent output). A full run
-over ~355k records takes a few seconds.
+Every run rebuilds the data from scratch (sqlite: file is replaced;
+postgres/mysql: tables are truncated first). A full run over ~355k records
+takes ~11s into sqlite, ~25s into postgres, ~40s into mysql on localhost.
+
+## Database dialects
+
+Schemas are defined per dialect in `src/db/schema/` (`sqlite.ts`, `pg.ts`,
+`mysql.ts`); `src/db/store.ts` exposes one async `PoetryStore` interface with
+per-dialect implementations behind `createStore()`. Migrations live in
+`drizzle/<dialect>/` and are applied automatically when the store opens.
+
+Regenerate migrations after changing a schema:
+
+```sh
+bun run db:generate:all
+```
+
+Dialect notes:
+
+- **postgres** uses Bun's native `SQL` client (`drizzle-orm/bun-sql`).
+- **mysql** uses `mysql2`; the connection forces `charset=utf8mb4`, and the
+  `authors.name`/`dynasty` columns use `COLLATE utf8mb4_bin` — without it,
+  `utf8mb4_unicode_ci` treats distinct supplementary-plane characters as
+  equal (e.g. 李𡉙 vs 李𡌴) and the unique key would silently merge authors.
+  The collation lives in the generated migration SQL (edited by hand);
+  drizzle-kit has no column-collation support, so re-apply that edit if you
+  regenerate the mysql migration from scratch.
+- Indexed MySQL columns must be bounded `varchar` (no index on `TEXT`), so
+  `title` is `varchar(512)` there while other dialects use unbounded text.
 
 ## Schema
 

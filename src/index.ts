@@ -6,16 +6,22 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadConfig } from "./config.ts";
-import { Pipeline, createRepository } from "./pipeline.ts";
+import { createStore } from "./db/store.ts";
+import { Pipeline } from "./pipeline.ts";
 import { authorSources, corpusEntries } from "./sources/corpora.ts";
 import { JsonCorpusSource } from "./sources/json-corpus.ts";
 import { StatsCollector } from "./stats.ts";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const repo = await createRepository({ dbPath: config.db, fresh: true });
+  const store = await createStore({
+    dialect: config.dialect,
+    dbPath: config.db,
+    databaseUrl: config.databaseUrl ?? undefined,
+    fresh: true,
+  });
   const stats = new StatsCollector();
-  const pipeline = new Pipeline(repo, stats);
+  const pipeline = new Pipeline(store, stats);
 
   try {
     await pipeline.runAuthors(authorSources(config.root));
@@ -31,14 +37,18 @@ async function main(): Promise<void> {
       await pipeline.runPoems(new JsonCorpusSource(entry.corpus), entry.mapping);
     }
   } finally {
-    repo.close();
+    await store.close();
   }
 
   stats.print();
   await mkdir(dirname(config.report), { recursive: true });
   await Bun.write(config.report, JSON.stringify(stats.toJSON(), null, 2));
   console.log(`\nreport written to ${config.report}`);
-  console.log(`database written to ${config.db}`);
+  console.log(
+    config.dialect === "sqlite"
+      ? `database written to ${config.db}`
+      : `database written to ${config.dialect} (${config.databaseUrl})`,
+  );
 }
 
 main().catch((err) => {
