@@ -1,15 +1,17 @@
 /**
- * ETL orchestrator. Wires sources → normalization → repository and records
- * stats. Each source is processed independently; one bad corpus cannot
- * abort the whole run.
+ * ETL orchestrator. Wires sources → normalization → repository as a lazy
+ * stream pipeline: pure transforms (map/filter) in the middle, side effects
+ * (stats, DB writes) only in tap callbacks and the final consumer. Each
+ * source is processed independently; one bad corpus cannot abort the run.
  */
 
 import { rm } from "node:fs/promises";
 import { PoetryRepository } from "./db/repository.ts";
 import { Deduper } from "./normalize/dedup.ts";
-import { normalizeRecord, type FieldMapping } from "./normalize/record.ts";
+import { makeClassifier, type FieldMapping } from "./normalize/record.ts";
 import { StatsCollector } from "./stats.ts";
-import type { AuthorRecord, AuthorSource, PoemSource } from "./types.ts";
+import { batchAsync, filterMapAsync, mapAsync, tapAsync } from "./stream.ts";
+import type { AuthorSource, PoemSource } from "./types.ts";
 
 /** How many poems are buffered per transaction batch. */
 const BATCH_SIZE = 1000;
@@ -31,54 +33,37 @@ export class Pipeline {
 
   async runAuthors(sources: AuthorSource[]): Promise<void> {
     for (const source of sources) {
-      const authors: AuthorRecord[] = [];
-      for await (const author of source.authors()) authors.push(author);
-      this.repo.transaction(() => {
-        for (const author of authors) this.repo.upsertAuthor(author);
-      });
+      const authors = await Array.fromAsync(source.authors());
+      this.repo.transaction(() => authors.forEach((a) => this.repo.upsertAuthor(a)));
       console.log(`authors:${source.name} upserted=${authors.length}`);
     }
   }
 
   async runPoems(source: PoemSource, mapping: FieldMapping): Promise<void> {
-    const dedup = this.dedup;
-    let batch: Parameters<PoetryRepository["insertPoem"]>[0][] = [];
+    // pure: raw -> NormalizeResult (normalize + dedup decision)
+    const classify = makeClassifier(mapping, this.dedup);
 
-    const flush = () => {
-      if (batch.length === 0) return;
-      const toInsert = batch;
-      batch = [];
-      this.repo.transaction(() => {
-        for (const poem of toInsert) this.repo.insertPoem(poem);
-      });
-    };
+    const counted = tapAsync(source.rawRecords(), () => this.stats.countRead(source.name));
+    const results = mapAsync(counted, classify);
+    const dropsLogged = tapAsync(results, (r) => {
+      if (!r.ok) this.stats.countDropped(source.name, r.reason);
+    });
+    const poems = tapAsync(
+      filterMapAsync(dropsLogged, (r) => (r.ok ? r.record : null)),
+      () => this.stats.countWritten(source.name),
+    );
 
-    for await (const raw of source.rawRecords()) {
-      this.stats.countRead(source.name);
-      const result = normalizeRecord(raw, mapping);
-      if (!result.ok) {
-        this.stats.countDropped(source.name, result.reason);
-        continue;
-      }
-      const { record } = result;
-      if (!dedup.isNew(record.author, record.title, record.content)) {
-        this.stats.countDropped(source.name, "duplicate");
-        continue;
-      }
-      batch.push(record);
-      this.stats.countWritten(source.name);
-      if (batch.length >= BATCH_SIZE) flush();
+    // the only effectful stage: batch insert in one transaction per batch
+    for await (const batch of batchAsync(poems, BATCH_SIZE)) {
+      this.repo.transaction(() => batch.forEach((p) => this.repo.insertPoem(p)));
     }
-    flush();
   }
 }
 
 export async function createRepository(options: PipelineOptions): Promise<PoetryRepository> {
   if (options.fresh) {
-    for (const suffix of ["", "-wal", "-shm"]) {
-      // force: true ignores missing files
-      await rm(options.dbPath + suffix, { force: true });
-    }
+    // force: true ignores missing files
+    await Promise.all(["", "-wal", "-shm"].map((s) => rm(options.dbPath + s, { force: true })));
   }
   return PoetryRepository.open(options.dbPath);
 }

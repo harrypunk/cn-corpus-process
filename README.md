@@ -46,8 +46,13 @@ Layers, each with one responsibility:
   a `FieldMapping`).
 - `src/db/` — `schema.ts` (DDL) and `repository.ts` (connection, author
   upsert, transactional poem inserts).
-- `src/pipeline.ts` — orchestrator; batches inserts (1000/transaction),
-  dedups globally (corpora overlap, e.g. 水墨唐诗 ⊂ 全唐诗).
+- `src/stream.ts` — lazy async-iterable transforms (`mapAsync` /
+  `filterAsync` / `filterMapAsync` / `tapAsync` / `batchAsync`); pure
+  building blocks for the pipeline.
+- `src/pipeline.ts` — orchestrator; composes the stream transforms, with
+  side effects (stats, DB writes) confined to tap callbacks and the final
+  batched-transaction consumer. Dedup is global (corpora overlap, e.g.
+  水墨唐诗 ⊂ 全唐诗).
 - `src/stats.ts` — per-source read/written/dropped-by-reason counters.
 - `src/config.ts` — environment-variable configuration.
 - `src/index.ts` — entry point.

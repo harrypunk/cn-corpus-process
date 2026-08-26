@@ -2,10 +2,13 @@
  * Author-biography loader. Upstream author files use two shapes:
  * - { name, desc }        (全唐诗 authors.*.json, 南唐 authors.json)
  * - { name, description } (宋词 author.song.json)
+ *
+ * `toAuthorRecord` is pure; the generator only applies it and filters out
+ * unusable entries.
  */
 
 import type { AuthorRecord, AuthorSource, RawRecord } from "../types.ts";
-import { canonicalizeAuthor } from "../normalize/author.ts";
+import { canonicalizeAuthor, ANONYMOUS } from "../normalize/author.ts";
 import { cleanLine } from "../normalize/text.ts";
 
 export interface AuthorFileConfig {
@@ -14,6 +17,19 @@ export interface AuthorFileConfig {
   dynasty: string;
   /** Which raw field holds the biography text. */
   descField: "desc" | "description";
+}
+
+/** Pure: raw author entry -> AuthorRecord, or null when unusable. */
+export function toAuthorRecord(config: AuthorFileConfig, item: RawRecord): AuthorRecord | null {
+  const name = canonicalizeAuthor(item.name as string | undefined);
+  if (name === ANONYMOUS) return null;
+  const rawDesc = item[config.descField];
+  const description = typeof rawDesc === "string" ? cleanLine(rawDesc) : "";
+  return {
+    name,
+    dynasty: config.dynasty,
+    description: description.length > 0 ? description : null,
+  };
 }
 
 export class JsonAuthorSource implements AuthorSource {
@@ -29,17 +45,10 @@ export class JsonAuthorSource implements AuthorSource {
   async *authors(): AsyncGenerator<AuthorRecord> {
     const data: unknown = await Bun.file(`${this.rootDir}/${this.config.file}`).json();
     if (!Array.isArray(data)) return;
-    for (const item of data as RawRecord[]) {
-      if (item === null || typeof item !== "object") continue;
-      const name = canonicalizeAuthor(item.name as string | undefined);
-      if (name === "佚名") continue;
-      const rawDesc = item[this.config.descField];
-      const description = typeof rawDesc === "string" ? cleanLine(rawDesc) : null;
-      yield {
-        name,
-        dynasty: this.config.dynasty,
-        description: description && description.length > 0 ? description : null,
-      };
-    }
+    const records = data
+      .filter((item): item is RawRecord => item !== null && typeof item === "object")
+      .map((item) => toAuthorRecord(this.config, item))
+      .filter((r): r is AuthorRecord => r !== null);
+    yield* records;
   }
 }

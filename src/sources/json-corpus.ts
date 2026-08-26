@@ -16,6 +16,28 @@ export interface JsonCorpusConfig {
   rootDir: string;
 }
 
+/** Pure: keep only object-shaped entries. */
+const isRecord = (item: unknown): item is RawRecord =>
+  item !== null && typeof item === "object" && !Array.isArray(item);
+
+/** Pure: parse one shard file into raw records. */
+async function readShard(path: string): Promise<RawRecord[]> {
+  const data: unknown = await Bun.file(path).json();
+  return Array.isArray(data) ? data.filter(isRecord) : [];
+}
+
+async function listShards(config: JsonCorpusConfig): Promise<string[]> {
+  const perPattern = await Promise.all(
+    config.patterns.map(async (pattern) => {
+      const files = await Array.fromAsync(
+        new Glob(pattern).scan({ cwd: config.rootDir, onlyFiles: true }),
+      );
+      return files.map((f) => `${config.rootDir}/${f}`);
+    }),
+  );
+  return perPattern.flat().sort();
+}
+
 export class JsonCorpusSource implements PoemSource {
   readonly name: string;
 
@@ -24,19 +46,9 @@ export class JsonCorpusSource implements PoemSource {
   }
 
   async *rawRecords(): AsyncGenerator<RawRecord> {
-    for (const pattern of this.config.patterns) {
-      const glob = new Glob(pattern);
-      const files = await Array.fromAsync(glob.scan({ cwd: this.config.rootDir, onlyFiles: true }));
-      files.sort();
-      for (const file of files) {
-        const data: unknown = await Bun.file(`${this.config.rootDir}/${file}`).json();
-        if (!Array.isArray(data)) continue;
-        for (const item of data) {
-          if (item !== null && typeof item === "object") {
-            yield item as RawRecord;
-          }
-        }
-      }
+    // sequential on purpose: one shard in memory at a time
+    for (const file of await listShards(this.config)) {
+      yield* await readShard(file);
     }
   }
 }

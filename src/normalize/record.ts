@@ -6,6 +6,7 @@
 
 import type { DropReason, PoemRecord, RawRecord } from "../types.ts";
 import { canonicalizeAuthor } from "./author.ts";
+import type { Deduper } from "./dedup.ts";
 import { cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
 
 export interface FieldMapping {
@@ -56,5 +57,25 @@ export function normalizeRecord(raw: RawRecord, map: FieldMapping): NormalizeRes
   return {
     ok: true,
     record: { author, dynasty: map.dynasty, title, content, source: map.source },
+  };
+}
+
+/**
+ * Full per-record decision: normalize, then reject duplicates via the
+ * supplied Deduper. Pure apart from the Deduper's internal seen-set,
+ * which the caller owns (pass a shared one for cross-corpus dedup).
+ */
+export function makeClassifier(
+  map: FieldMapping,
+  dedup: Deduper,
+): (raw: RawRecord) => NormalizeResult {
+  return (raw) => {
+    const result = normalizeRecord(raw, map);
+    if (!result.ok) return result;
+    const { author, title, content } = result.record;
+    if (!dedup.isNew(author, title, content)) {
+      return { ok: false, reason: "duplicate" };
+    }
+    return result;
   };
 }
