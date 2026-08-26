@@ -49,7 +49,8 @@ Layers, each with one responsibility:
 - `src/pipeline.ts` — orchestrator; batches inserts (1000/transaction),
   dedups globally (corpora overlap, e.g. 水墨唐诗 ⊂ 全唐诗).
 - `src/stats.ts` — per-source read/written/dropped-by-reason counters.
-- `src/index.ts` — CLI.
+- `src/config.ts` — environment-variable configuration.
+- `src/index.ts` — entry point.
 
 ## Usage
 
@@ -57,15 +58,19 @@ Layers, each with one responsibility:
 bun install
 bun test
 
-# full run (defaults: --root ../fork/chinese-poetry --db dist/poetry.db)
-bun run etl --root /path/to/chinese-poetry
-
-# one corpus only
-bun run etl --root /path/to/chinese-poetry --source shijing
-
-# custom output paths
-bun run etl --root /path/to/chinese-poetry --db out/p.db --report out/report.json
+cp .env.example .env   # then set POETRY_ROOT in .env
+bun run etl
 ```
+
+Configuration is via environment variables (Bun auto-loads `.env`), no CLI
+flags:
+
+| variable       | required | default            | meaning |
+|----------------|----------|--------------------|---------|
+| `POETRY_ROOT`  | yes      | —                  | root of your chinese-poetry checkout |
+| `ETL_DB`       | no       | `dist/poetry.db`   | output SQLite path |
+| `ETL_REPORT`   | no       | `dist/report.json` | stats report path |
+| `ETL_SOURCE`   | no       | (all corpora)      | run a single corpus, e.g. `shijing` |
 
 Every run rebuilds the database from scratch (idempotent output). A full run
 over ~355k records takes a few seconds.
