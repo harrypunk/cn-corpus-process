@@ -21,9 +21,9 @@ export class PoetryRepository {
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new Database(dbPath, { create: true });
-    this.db.exec("PRAGMA journal_mode = WAL;");
-    this.db.exec("PRAGMA synchronous = OFF;");
-    this.db.exec(SCHEMA_SQL);
+    this.db.run("PRAGMA journal_mode = WAL;");
+    this.db.run("PRAGMA synchronous = OFF;");
+    this.db.run(SCHEMA_SQL);
     this.insertAuthorStmt = this.db.prepare(
       "INSERT OR IGNORE INTO authors (name, dynasty, description) VALUES (?, ?, ?)",
     );
