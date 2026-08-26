@@ -13,6 +13,7 @@ import { SCHEMA_SQL } from "./schema.ts";
 export class PoetryRepository {
   private readonly db: Database;
   private readonly insertAuthorStmt;
+  private readonly updateAuthorDescStmt;
   private readonly selectAuthorStmt;
   private readonly insertPoemStmt;
   private readonly authorIdCache = new Map<string, number>();
@@ -25,6 +26,9 @@ export class PoetryRepository {
     this.db.exec(SCHEMA_SQL);
     this.insertAuthorStmt = this.db.prepare(
       "INSERT OR IGNORE INTO authors (name, dynasty, description) VALUES (?, ?, ?)",
+    );
+    this.updateAuthorDescStmt = this.db.prepare(
+      "UPDATE authors SET description = ? WHERE name = ? AND dynasty IS ? AND description IS NULL",
     );
     this.selectAuthorStmt = this.db.prepare(
       "SELECT id FROM authors WHERE name = ? AND dynasty IS ?",
@@ -43,10 +47,7 @@ export class PoetryRepository {
   upsertAuthor(author: AuthorRecord): void {
     this.insertAuthorStmt.run(author.name, author.dynasty, author.description);
     if (author.description) {
-      this.db.run(
-        "UPDATE authors SET description = ? WHERE name = ? AND dynasty IS ? AND description IS NULL",
-        [author.description, author.name, author.dynasty],
-      );
+      this.updateAuthorDescStmt.run(author.description, author.name, author.dynasty);
     }
     this.authorIdCache.delete(`${author.name}${author.dynasty}`);
   }
