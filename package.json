@@ -21,6 +21,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.2",
     "effect": "^3.22.1"
   }
 }

@@ -44,8 +44,11 @@ Layers, each with one responsibility:
   `text.ts` (line cleaning), `author.ts` (佚名 canonicalization),
   `dedup.ts` (content-hash dedup), `record.ts` (RawRecord → PoemRecord via
   a `FieldMapping`).
-- `src/db/` — `schema.ts` (DDL) and `repository.ts` (connection, author
-  upsert, transactional poem inserts).
+- `src/db/` — `schema.ts` (Drizzle table definitions + one-shot DDL) and
+  `repository.ts` (typed queries via [Drizzle ORM](https://orm.drizzle.team)
+  over bun:sqlite: author upsert, batched multi-row poem inserts). The
+  repository is the only file that touches SQL, so swapping SQLite for
+  Postgres/MySQL later means swapping the Drizzle driver, not the pipeline.
 - `src/pipeline.ts` — orchestrator; composes an [Effect](https://effect.website)
   `Stream` (pure `map`/`filterMap` transforms, side effects confined to
   `tap`s and the final batched-transaction sink via `grouped` +

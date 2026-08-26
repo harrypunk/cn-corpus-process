@@ -59,13 +59,9 @@ export class Pipeline {
       Stream.filterMap((r) => (r.ok ? Option.some(r.record) : Option.none())),
       Stream.tap(() => Effect.sync(() => this.stats.countWritten(source.name))),
       Stream.grouped(BATCH_SIZE),
-      // the only effectful stage: batch insert in one transaction per batch
+      // the only effectful stage: one multi-row INSERT per batch
       Stream.runForEach((batch) =>
-        Effect.sync(() =>
-          this.repo.transaction(() => {
-            for (const p of batch) this.repo.insertPoem(p);
-          }),
-        ),
+        Effect.sync(() => this.repo.transaction(() => this.repo.insertPoems([...batch]))),
       ),
     );
 
