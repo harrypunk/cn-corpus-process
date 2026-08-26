@@ -27,17 +27,14 @@ export class JsonAuthorSource implements AuthorSource {
   }
 
   async *authors(): AsyncGenerator<AuthorRecord> {
-    const data: unknown = await Bun.file(
-      `${this.rootDir}/${this.config.file}`,
-    ).json();
+    const data: unknown = await Bun.file(`${this.rootDir}/${this.config.file}`).json();
     if (!Array.isArray(data)) return;
     for (const item of data as RawRecord[]) {
       if (item === null || typeof item !== "object") continue;
       const name = canonicalizeAuthor(item.name as string | undefined);
       if (name === "佚名") continue;
       const rawDesc = item[this.config.descField];
-      const description =
-        typeof rawDesc === "string" ? cleanLine(rawDesc) : null;
+      const description = typeof rawDesc === "string" ? cleanLine(rawDesc) : null;
       yield {
         name,
         dynasty: this.config.dynasty,

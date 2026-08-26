@@ -102,9 +102,24 @@ export function corpusEntries(rootDir: string): CorpusEntry[] {
 
 const AUTHOR_FILES: AuthorFileConfig[] = [
   { name: "authors-tang", file: "全唐诗/authors.tang.json", dynasty: "tang", descField: "desc" },
-  { name: "authors-song-shi", file: "全唐诗/authors.song.json", dynasty: "song", descField: "desc" },
-  { name: "authors-song-ci", file: "宋词/author.song.json", dynasty: "song", descField: "description" },
-  { name: "authors-nantang", file: "五代诗词/nantang/authors.json", dynasty: "wudai", descField: "desc" },
+  {
+    name: "authors-song-shi",
+    file: "全唐诗/authors.song.json",
+    dynasty: "song",
+    descField: "desc",
+  },
+  {
+    name: "authors-song-ci",
+    file: "宋词/author.song.json",
+    dynasty: "song",
+    descField: "description",
+  },
+  {
+    name: "authors-nantang",
+    file: "五代诗词/nantang/authors.json",
+    dynasty: "wudai",
+    descField: "desc",
+  },
 ];
 
 export function poemSources(rootDir: string): PoemSource[] {

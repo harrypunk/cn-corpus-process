@@ -148,6 +148,8 @@ songci         read=21053 written=21036 dropped: invalid_chars=13, duplicate=4
 
 ## Development
 
+- `bun run check` — lint (oxlint) + format check (oxfmt) + typecheck (tsc)
+  + unit tests in one go. Fix formatting with `bun run format`.
 - `bun test` — unit tests for the normalization layer (fixtures only, never
   the real corpus).
 - Follow the existing module boundaries: new corpus → registry entry in

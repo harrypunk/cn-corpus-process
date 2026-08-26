@@ -6,11 +6,7 @@
 
 import type { DropReason, PoemRecord, RawRecord } from "../types.ts";
 import { canonicalizeAuthor } from "./author.ts";
-import {
-  cleanParagraphs,
-  cleanTitle,
-  containsReplacementChar,
-} from "./text.ts";
+import { cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
 
 export interface FieldMapping {
   /** Field holding the paragraph array: "paragraphs" | "content" | "para". */
@@ -27,9 +23,7 @@ export interface FieldMapping {
   source: string;
 }
 
-export type NormalizeResult =
-  | { ok: true; record: PoemRecord }
-  | { ok: false; reason: DropReason };
+export type NormalizeResult = { ok: true; record: PoemRecord } | { ok: false; reason: DropReason };
 
 function asStringArray(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
@@ -37,10 +31,7 @@ function asStringArray(value: unknown): string[] | null {
   return strings.length > 0 ? strings : null;
 }
 
-export function normalizeRecord(
-  raw: RawRecord,
-  map: FieldMapping,
-): NormalizeResult {
+export function normalizeRecord(raw: RawRecord, map: FieldMapping): NormalizeResult {
   const paragraphs = asStringArray(raw[map.paragraphs]);
   if (!paragraphs) return { ok: false, reason: "empty_content" };
 

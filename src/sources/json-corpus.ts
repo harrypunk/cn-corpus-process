@@ -26,14 +26,10 @@ export class JsonCorpusSource implements PoemSource {
   async *rawRecords(): AsyncGenerator<RawRecord> {
     for (const pattern of this.config.patterns) {
       const glob = new Glob(pattern);
-      const files = await Array.fromAsync(
-        glob.scan({ cwd: this.config.rootDir, onlyFiles: true }),
-      );
+      const files = await Array.fromAsync(glob.scan({ cwd: this.config.rootDir, onlyFiles: true }));
       files.sort();
       for (const file of files) {
-        const data: unknown = await Bun.file(
-          `${this.config.rootDir}/${file}`,
-        ).json();
+        const data: unknown = await Bun.file(`${this.config.rootDir}/${file}`).json();
         if (!Array.isArray(data)) continue;
         for (const item of data) {
           if (item !== null && typeof item === "object") {

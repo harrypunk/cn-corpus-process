@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalizeAuthor, ANONYMOUS } from "./author.ts";
 import { Deduper } from "./dedup.ts";
-import {
-  cleanLine,
-  cleanParagraphs,
-  cleanTitle,
-  containsReplacementChar,
-} from "./text.ts";
+import { cleanLine, cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
 import { normalizeRecord, type FieldMapping } from "./record.ts";
 
 describe("cleanLine", () => {
@@ -97,10 +92,7 @@ describe("normalizeRecord", () => {
   });
 
   test("drops corrupted content", () => {
-    const r = normalizeRecord(
-      { author: "李白", title: "x", paragraphs: ["千山\uFFFD黑"] },
-      map,
-    );
+    const r = normalizeRecord({ author: "李白", title: "x", paragraphs: ["千山\uFFFD黑"] }, map);
     expect(r).toEqual({ ok: false, reason: "invalid_chars" });
   });
 
