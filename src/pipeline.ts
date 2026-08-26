@@ -4,7 +4,7 @@
  * abort the whole run.
  */
 
-import { unlinkSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { PoetryRepository } from "./db/repository.ts";
 import { Deduper } from "./normalize/dedup.ts";
 import { normalizeRecord, type FieldMapping } from "./normalize/record.ts";
@@ -73,15 +73,12 @@ export class Pipeline {
   }
 }
 
-export function createRepository(options: PipelineOptions): PoetryRepository {
+export async function createRepository(options: PipelineOptions): Promise<PoetryRepository> {
   if (options.fresh) {
     for (const suffix of ["", "-wal", "-shm"]) {
-      try {
-        unlinkSync(options.dbPath + suffix);
-      } catch {
-        // file did not exist — fine
-      }
+      // force: true ignores missing files
+      await rm(options.dbPath + suffix, { force: true });
     }
   }
-  return new PoetryRepository(options.dbPath);
+  return PoetryRepository.open(options.dbPath);
 }

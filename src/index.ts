@@ -3,7 +3,7 @@
  * (see src/config.ts and .env.example) — no CLI flags.
  */
 
-import { mkdirSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadConfig } from "./config.ts";
 import { Pipeline, createRepository } from "./pipeline.ts";
@@ -12,7 +12,7 @@ import { StatsCollector } from "./stats.ts";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const repo = createRepository({ dbPath: config.db, fresh: true });
+  const repo = await createRepository({ dbPath: config.db, fresh: true });
   const stats = new StatsCollector();
   const pipeline = new Pipeline(repo, stats);
 
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
   }
 
   stats.print();
-  mkdirSync(dirname(config.report), { recursive: true });
+  await mkdir(dirname(config.report), { recursive: true });
   await Bun.write(config.report, JSON.stringify(stats.toJSON(), null, 2));
   console.log(`\nreport written to ${config.report}`);
   console.log(`database written to ${config.db}`);

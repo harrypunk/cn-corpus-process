@@ -5,7 +5,7 @@
  */
 
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { AuthorRecord, PoemRecord } from "../types.ts";
 import { SCHEMA_SQL } from "./schema.ts";
@@ -18,9 +18,8 @@ export class PoetryRepository {
   private readonly insertPoemStmt;
   private readonly authorIdCache = new Map<string, number>();
 
-  constructor(dbPath: string) {
-    mkdirSync(dirname(dbPath), { recursive: true });
-    this.db = new Database(dbPath, { create: true });
+  private constructor(db: Database) {
+    this.db = db;
     this.db.run("PRAGMA journal_mode = WAL;");
     this.db.run("PRAGMA synchronous = OFF;");
     this.db.run(SCHEMA_SQL);
@@ -36,6 +35,12 @@ export class PoetryRepository {
     this.insertPoemStmt = this.db.prepare(
       "INSERT INTO poems (author_id, title, content, source) VALUES (?, ?, ?, ?)",
     );
+  }
+
+  /** Open (creating if needed) the database at dbPath. */
+  static async open(dbPath: string): Promise<PoetryRepository> {
+    await mkdir(dirname(dbPath), { recursive: true });
+    return new PoetryRepository(new Database(dbPath, { create: true }));
   }
 
   /** Run fn inside a single transaction. */
