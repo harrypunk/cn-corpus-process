@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { canonicalizeAuthor, ANONYMOUS } from "./author.ts";
 import { Deduper } from "./dedup.ts";
 import { cleanLine, cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
-import { normalizeRecord, type FieldMapping } from "./record.ts";
+import { makeClassifier, normalizeRecord, type FieldMapping } from "./record.ts";
 
 describe("cleanLine", () => {
   test("trims and strips CR", () => {
@@ -110,5 +110,25 @@ describe("normalizeRecord", () => {
       expect(r.record.title).toBe("短歌行");
       expect(r.record.author).toBe("曹操");
     }
+  });
+});
+
+describe("makeClassifier", () => {
+  const map: FieldMapping = { paragraphs: "paragraphs", dynasty: "tang", source: "t" };
+
+  test("marks second identical record as duplicate", () => {
+    const classify = makeClassifier(map, new Deduper());
+    const raw = { author: "李白", title: "静夜思", paragraphs: ["床前明月光"] };
+    expect(classify(raw).ok).toBe(true);
+    expect(classify(raw)).toEqual({ ok: false, reason: "duplicate" });
+  });
+
+  test("shared deduper rejects across mappings", () => {
+    const dedup = new Deduper();
+    const a = makeClassifier(map, dedup);
+    const b = makeClassifier({ ...map, source: "other" }, dedup);
+    const raw = { author: "李白", title: "静夜思", paragraphs: ["床前明月光"] };
+    expect(a(raw).ok).toBe(true);
+    expect(b(raw)).toEqual({ ok: false, reason: "duplicate" });
   });
 });

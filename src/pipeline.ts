@@ -1,16 +1,16 @@
 /**
  * ETL orchestrator. Wires sources → normalization → repository as a lazy
- * stream pipeline: pure transforms (map/filter) in the middle, side effects
- * (stats, DB writes) only in tap callbacks and the final consumer. Each
- * source is processed independently; one bad corpus cannot abort the run.
+ * Effect Stream: pure transforms (map/filterMap) in the middle, side
+ * effects (stats, DB writes) only in taps and the final sink. Each source
+ * is processed independently; one bad corpus cannot abort the run.
  */
 
 import { rm } from "node:fs/promises";
+import { Effect, Option, Stream } from "effect";
 import { PoetryRepository } from "./db/repository.ts";
 import { Deduper } from "./normalize/dedup.ts";
 import { makeClassifier, type FieldMapping } from "./normalize/record.ts";
 import { StatsCollector } from "./stats.ts";
-import { batchAsync, filterMapAsync, mapAsync, tapAsync } from "./stream.ts";
 import type { AuthorSource, PoemSource } from "./types.ts";
 
 /** How many poems are buffered per transaction batch. */
@@ -21,6 +21,9 @@ export interface PipelineOptions {
   /** Rebuild the DB from scratch (delete the existing file first). */
   fresh: boolean;
 }
+
+const toStream = <A>(iter: AsyncIterable<A>): Stream.Stream<A, Error> =>
+  Stream.fromAsyncIterable(iter, (e) => (e instanceof Error ? e : new Error(String(e))));
 
 export class Pipeline {
   /** Dedup is global: corpora overlap (e.g. 水墨唐诗 ⊂ 全唐诗). */
@@ -33,8 +36,10 @@ export class Pipeline {
 
   async runAuthors(sources: AuthorSource[]): Promise<void> {
     for (const source of sources) {
-      const authors = await Array.fromAsync(source.authors());
-      this.repo.transaction(() => authors.forEach((a) => this.repo.upsertAuthor(a)));
+      const authors = await Effect.runPromise(Stream.runCollect(toStream(source.authors())));
+      this.repo.transaction(() => {
+        for (const a of authors) this.repo.upsertAuthor(a);
+      });
       console.log(`authors:${source.name} upserted=${authors.length}`);
     }
   }
@@ -43,20 +48,28 @@ export class Pipeline {
     // pure: raw -> NormalizeResult (normalize + dedup decision)
     const classify = makeClassifier(mapping, this.dedup);
 
-    const counted = tapAsync(source.rawRecords(), () => this.stats.countRead(source.name));
-    const results = mapAsync(counted, classify);
-    const dropsLogged = tapAsync(results, (r) => {
-      if (!r.ok) this.stats.countDropped(source.name, r.reason);
-    });
-    const poems = tapAsync(
-      filterMapAsync(dropsLogged, (r) => (r.ok ? r.record : null)),
-      () => this.stats.countWritten(source.name),
+    const program = toStream(source.rawRecords()).pipe(
+      Stream.tap(() => Effect.sync(() => this.stats.countRead(source.name))),
+      Stream.map(classify),
+      Stream.tap((r) =>
+        Effect.sync(() => {
+          if (!r.ok) this.stats.countDropped(source.name, r.reason);
+        }),
+      ),
+      Stream.filterMap((r) => (r.ok ? Option.some(r.record) : Option.none())),
+      Stream.tap(() => Effect.sync(() => this.stats.countWritten(source.name))),
+      Stream.grouped(BATCH_SIZE),
+      // the only effectful stage: batch insert in one transaction per batch
+      Stream.runForEach((batch) =>
+        Effect.sync(() =>
+          this.repo.transaction(() => {
+            for (const p of batch) this.repo.insertPoem(p);
+          }),
+        ),
+      ),
     );
 
-    // the only effectful stage: batch insert in one transaction per batch
-    for await (const batch of batchAsync(poems, BATCH_SIZE)) {
-      this.repo.transaction(() => batch.forEach((p) => this.repo.insertPoem(p)));
-    }
+    await Effect.runPromise(program);
   }
 }
 
