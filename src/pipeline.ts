@@ -9,7 +9,7 @@ import { PoetryRepository } from "./db/repository.ts";
 import { Deduper } from "./normalize/dedup.ts";
 import { normalizeRecord, type FieldMapping } from "./normalize/record.ts";
 import { StatsCollector } from "./stats.ts";
-import type { AuthorSource, PoemSource } from "./types.ts";
+import type { AuthorRecord, AuthorSource, PoemSource } from "./types.ts";
 
 /** How many poems are buffered per transaction batch. */
 const BATCH_SIZE = 1000;
@@ -31,7 +31,7 @@ export class Pipeline {
 
   async runAuthors(sources: AuthorSource[]): Promise<void> {
     for (const source of sources) {
-      const authors = [];
+      const authors: AuthorRecord[] = [];
       for await (const author of source.authors()) authors.push(author);
       this.repo.transaction(() => {
         for (const author of authors) this.repo.upsertAuthor(author);
@@ -40,10 +40,7 @@ export class Pipeline {
     }
   }
 
-  async runPoems(
-    source: PoemSource,
-    mapping: FieldMapping,
-  ): Promise<void> {
+  async runPoems(source: PoemSource, mapping: FieldMapping): Promise<void> {
     const dedup = this.dedup;
     let batch: Parameters<PoetryRepository["insertPoem"]>[0][] = [];
 
