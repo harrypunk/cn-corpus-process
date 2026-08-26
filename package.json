@@ -4,10 +4,18 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "etl": "bun src/index.ts"
+    "etl": "bun src/index.ts",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint --fix src",
+    "format": "oxfmt src",
+    "format:check": "oxfmt --check src",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run lint && bun run format:check && bun run typecheck && bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0"
   },
   "peerDependencies": {
     "typescript": "^5"
