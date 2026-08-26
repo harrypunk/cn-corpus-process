@@ -39,6 +39,9 @@ export interface PoetryStore {
 
 const MIGRATIONS = join(import.meta.dir, "../../drizzle");
 
+/** AuthorRecord with dynasty normalized to "" (schema is NOT NULL). */
+type AuthorRow = Omit<AuthorRecord, "dynasty"> & { dynasty: string };
+
 interface PoemRow {
   authorId: number;
   title: string;
@@ -80,18 +83,22 @@ abstract class BaseStore implements PoetryStore {
     const key = `${name}${dynasty}`;
     const cached = this.authorIdCache.get(key);
     if (cached !== undefined) return cached;
-    await this.insertAuthorIgnore(this.client, { name, dynasty, description: null });
-    const id = await this.selectAuthorId(this.client, name, dynasty);
+    await this.insertAuthorIgnore(this.client, { name, dynasty: dynasty ?? "", description: null });
+    const id = await this.selectAuthorId(this.client, name, dynasty ?? "");
     if (id === undefined) throw new Error(`author lookup failed: ${name} (${dynasty})`);
     this.authorIdCache.set(key, id);
     return id;
   }
 
   private async upsertOne(tx: unknown, author: AuthorRecord): Promise<void> {
-    await this.insertAuthorIgnore(tx, author);
-    if (author.description) {
-      await this.updateAuthorDesc(tx, author);
-      this.authorIdCache.delete(`${author.name}${author.dynasty}`);
+    // dynasty is NOT NULL DEFAULT '' in the schema; nulls are normalized
+    // here so the (name, dynasty) unique key works on every dialect
+    // (SQL UNIQUE treats NULLs as distinct on sqlite/postgres)
+    const row = { ...author, dynasty: author.dynasty ?? "" };
+    await this.insertAuthorIgnore(tx, row);
+    if (row.description) {
+      await this.updateAuthorDesc(tx, row);
+      this.authorIdCache.delete(`${row.name}${row.dynasty}`);
     }
   }
 
@@ -99,15 +106,15 @@ abstract class BaseStore implements PoetryStore {
   protected abstract get client(): unknown;
 
   /** Insert an author row, ignoring (name, dynasty) conflicts. */
-  protected abstract insertAuthorIgnore(client: unknown, row: AuthorRecord): Promise<void>;
+  protected abstract insertAuthorIgnore(client: unknown, row: AuthorRow): Promise<void>;
 
   /** Fill in description only when the existing row has none. */
-  protected abstract updateAuthorDesc(client: unknown, author: AuthorRecord): Promise<void>;
+  protected abstract updateAuthorDesc(client: unknown, author: AuthorRow): Promise<void>;
 
   protected abstract selectAuthorId(
     client: unknown,
     name: string,
-    dynasty: Maybe<string>,
+    dynasty: string,
   ): Promise<number | undefined>;
 
   protected abstract insertPoemRows(client: unknown, rows: PoemRow[]): Promise<void>;
@@ -130,7 +137,7 @@ class SqliteStore extends BaseStore {
     return this.db;
   }
 
-  protected async insertAuthorIgnore(client: unknown, row: AuthorRecord): Promise<void> {
+  protected async insertAuthorIgnore(client: unknown, row: AuthorRow): Promise<void> {
     (client as SqliteStore["db"])
       .insert(sqliteSchema.authors)
       .values(row)
@@ -138,14 +145,14 @@ class SqliteStore extends BaseStore {
       .run();
   }
 
-  protected async updateAuthorDesc(client: unknown, author: AuthorRecord): Promise<void> {
+  protected async updateAuthorDesc(client: unknown, author: AuthorRow): Promise<void> {
     (client as SqliteStore["db"])
       .update(sqliteSchema.authors)
       .set({ description: author.description })
       .where(
         and(
           eq(sqliteSchema.authors.name, author.name),
-          dynastyEq(sqliteSchema.authors.dynasty, author.dynasty),
+          eq(sqliteSchema.authors.dynasty, author.dynasty),
           isNull(sqliteSchema.authors.description),
         ),
       )
@@ -155,14 +162,12 @@ class SqliteStore extends BaseStore {
   protected async selectAuthorId(
     client: unknown,
     name: string,
-    dynasty: Maybe<string>,
+    dynasty: string,
   ): Promise<number | undefined> {
     const row = (client as SqliteStore["db"])
       .select({ id: sqliteSchema.authors.id })
       .from(sqliteSchema.authors)
-      .where(
-        and(eq(sqliteSchema.authors.name, name), dynastyEq(sqliteSchema.authors.dynasty, dynasty)),
-      )
+      .where(and(eq(sqliteSchema.authors.name, name), eq(sqliteSchema.authors.dynasty, dynasty)))
       .get();
     return row?.id;
   }
@@ -207,7 +212,7 @@ class AsyncDrizzleStore extends BaseStore {
     return this.db;
   }
 
-  protected async insertAuthorIgnore(client: unknown, row: AuthorRecord): Promise<void> {
+  protected async insertAuthorIgnore(client: unknown, row: AuthorRow): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const builder = (client as any).insert(this.tables.authors);
     // ignore() lives on the insert builder and must precede values()
@@ -216,7 +221,7 @@ class AsyncDrizzleStore extends BaseStore {
     else await q.onConflictDoNothing();
   }
 
-  protected async updateAuthorDesc(client: unknown, author: AuthorRecord): Promise<void> {
+  protected async updateAuthorDesc(client: unknown, author: AuthorRow): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (client as any)
       .update(this.tables.authors)
@@ -224,7 +229,7 @@ class AsyncDrizzleStore extends BaseStore {
       .where(
         and(
           eq(this.tables.authors.name, author.name),
-          dynastyEq(this.tables.authors.dynasty, author.dynasty),
+          eq(this.tables.authors.dynasty, author.dynasty),
           isNull(this.tables.authors.description),
         ),
       );
@@ -233,15 +238,13 @@ class AsyncDrizzleStore extends BaseStore {
   protected async selectAuthorId(
     client: unknown,
     name: string,
-    dynasty: Maybe<string>,
+    dynasty: string,
   ): Promise<number | undefined> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = await (client as any)
       .select({ id: this.tables.authors.id })
       .from(this.tables.authors)
-      .where(
-        and(eq(this.tables.authors.name, name), dynastyEq(this.tables.authors.dynasty, dynasty)),
-      )
+      .where(and(eq(this.tables.authors.name, name), eq(this.tables.authors.dynasty, dynasty)))
       .limit(1);
     return rows[0]?.id;
   }
@@ -259,16 +262,6 @@ class AsyncDrizzleStore extends BaseStore {
   async close(): Promise<void> {
     await this.closeClient();
   }
-}
-
-/**
- * eq() with NULL semantics: `dynasty IS NULL` when dynasty is null.
- * The column object differs per dialect, so callers pass their table's
- * dynasty column explicitly.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function dynastyEq(column: any, dynasty: Maybe<string>): any {
-  return dynasty === null ? isNull(column) : eq(column, dynasty);
 }
 
 export interface StoreOptions {

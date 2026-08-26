@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "65c22791-3e0b-4036-92ff-3f1c6c1929e1",
+  "id": "6c9b15b2-4551-46d3-b6c6-aaf30ad944b1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "authors": {
@@ -25,8 +25,9 @@
           "name": "dynasty",
           "type": "varchar(64)",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
         },
         "description": {
           "name": "description",

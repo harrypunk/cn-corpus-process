@@ -11,7 +11,7 @@ export const authors = sqliteTable(
   {
     id: integer("id").primaryKey(),
     name: text("name").notNull(),
-    dynasty: text("dynasty"),
+    dynasty: text("dynasty").notNull().default(""),
     description: text("description"),
   },
   (t) => [uniqueIndex("authors_name_dynasty").on(t.name, t.dynasty)],

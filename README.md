@@ -114,8 +114,8 @@ Dialect notes:
 CREATE TABLE authors (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
-  dynasty TEXT,
-  description TEXT,
+  dynasty TEXT NOT NULL DEFAULT '',  -- null dynasty normalized to '' so the
+  description TEXT,                 -- unique key works on every dialect
   UNIQUE(name, dynasty)
 );
 

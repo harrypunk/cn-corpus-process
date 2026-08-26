@@ -1,7 +1,7 @@
 CREATE TABLE `authors` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`name` varchar(191) COLLATE utf8mb4_bin NOT NULL,
-	`dynasty` varchar(64) COLLATE utf8mb4_bin,
+	`dynasty` varchar(64) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
 	`description` text,
 	CONSTRAINT `authors_id` PRIMARY KEY(`id`),
 	CONSTRAINT `authors_name_dynasty` UNIQUE(`name`,`dynasty`)

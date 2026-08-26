@@ -12,7 +12,7 @@ export const authors = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     name: varchar("name", { length: 191 }).notNull(),
-    dynasty: varchar("dynasty", { length: 64 }),
+    dynasty: varchar("dynasty", { length: 64 }).notNull().default(""),
     description: text("description"),
   },
   (t) => [uniqueIndex("authors_name_dynasty").on(t.name, t.dynasty)],

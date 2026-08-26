@@ -1,7 +1,7 @@
 CREATE TABLE "authors" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
-	"dynasty" text,
+	"dynasty" text DEFAULT '' NOT NULL,
 	"description" text
 );
 --> statement-breakpoint
