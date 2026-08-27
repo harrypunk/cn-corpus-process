@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "f6f72e7c-70ff-4983-a655-18b49d21beca",
+  "id": "7b711cce-5b86-48cc-aec8-f0b78bba5cef",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "authors": {
@@ -153,6 +153,87 @@
       "compositePrimaryKeys": {
         "poems_id": {
           "name": "poems_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "sentences": {
+      "name": "sentences",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "poem_id": {
+          "name": "poem_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seq": {
+          "name": "seq",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text_search": {
+          "name": "text_search",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parts": {
+          "name": "parts",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_sentences_poem": {
+          "name": "idx_sentences_poem",
+          "columns": [
+            "poem_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "sentences_poem_id_poems_id_fk": {
+          "name": "sentences_poem_id_poems_id_fk",
+          "tableFrom": "sentences",
+          "tableTo": "poems",
+          "columnsFrom": [
+            "poem_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "sentences_id": {
+          "name": "sentences_id",
           "columns": [
             "id"
           ]

@@ -36,3 +36,22 @@ export const poems = pgTable(
     index("idx_poems_title_search").on(t.titleSearch),
   ],
 );
+
+export const sentences = pgTable(
+  "sentences",
+  {
+    id: serial("id").primaryKey(),
+    poemId: integer("poem_id")
+      .notNull()
+      .references(() => poems.id),
+    /** 0-based position within the poem. */
+    seq: integer("seq").notNull(),
+    /** Original text (display). */
+    text: text("text").notNull(),
+    /** Simplified+NFKC form (search). */
+    textSearch: text("text_search").notNull(),
+    /** Number of comma-separated clauses. */
+    parts: integer("parts").notNull(),
+  },
+  (t) => [index("idx_sentences_poem").on(t.poemId)],
+);

@@ -133,7 +133,23 @@ CREATE TABLE poems (
 );
 CREATE INDEX idx_poems_author ON poems(author_id);
 CREATE INDEX idx_poems_title ON poems(title);
+
+CREATE TABLE sentences (
+  id INTEGER PRIMARY KEY,
+  poem_id INTEGER NOT NULL REFERENCES poems(id),
+  seq INTEGER NOT NULL,         -- 0-based position within the poem
+  text TEXT NOT NULL,           -- original, for display (terminal 。！？ stripped)
+  text_search TEXT NOT NULL,    -- simplified+NFKC, for search
+  parts INTEGER NOT NULL        -- comma-separated clause count
+);
+CREATE INDEX idx_sentences_poem ON sentences(poem_id);
 ```
+
+`sentences` is derived from `poems.content` by the pure
+`splitSentences()` (`src/normalize/sentence.ts`): split on 。！？ and line
+breaks, terminal punctuation dropped, `parts` counts clauses so the game can
+filter by sentence complexity (~1.59M sentences from the full corpus; 2-part
+sentences dominate).
 
 ## Corpora
 

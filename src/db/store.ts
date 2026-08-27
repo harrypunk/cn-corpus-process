@@ -23,6 +23,8 @@ import { migrate as migrateMysql } from "drizzle-orm/mysql2/migrator";
 import mysql from "mysql2/promise";
 import { mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { splitSentences } from "../normalize/sentence.ts";
+import { toSearchText } from "../normalize/search.ts";
 import type { AuthorRecord, Maybe, PoemRecord } from "../types.ts";
 import * as sqliteSchema from "./schema/sqlite.ts";
 import * as pgSchema from "./schema/pg.ts";
@@ -41,6 +43,14 @@ const MIGRATIONS = join(import.meta.dir, "../../drizzle");
 
 /** AuthorRecord with dynasty normalized to "" (schema is NOT NULL). */
 type AuthorRow = Omit<AuthorRecord, "dynasty"> & { dynasty: string };
+
+interface SentenceRow {
+  poemId: number;
+  seq: number;
+  text: string;
+  textSearch: string;
+  parts: number;
+}
 
 interface PoemRow {
   authorId: number;
@@ -79,7 +89,19 @@ abstract class BaseStore implements PoetryStore {
         source: poem.source,
       });
     }
-    await this.inTransaction((tx) => this.insertPoemRows(tx, rows));
+    await this.inTransaction(async (tx) => {
+      const poemIds = await this.insertPoemRows(tx, rows);
+      const sentenceRows: SentenceRow[] = poems.flatMap((poem, i) =>
+        splitSentences(poem.content).map((s, seq) => ({
+          poemId: poemIds[i]!,
+          seq,
+          text: s.text,
+          textSearch: toSearchText(s.text),
+          parts: s.parts,
+        })),
+      );
+      await this.insertSentenceRows(tx, sentenceRows);
+    });
   }
 
   /** Resolve (name, dynasty) to an author id, creating the row if needed. */
@@ -121,7 +143,10 @@ abstract class BaseStore implements PoetryStore {
     dynasty: string,
   ): Promise<number | undefined>;
 
-  protected abstract insertPoemRows(client: unknown, rows: PoemRow[]): Promise<void>;
+  /** Insert poem rows; returns the assigned ids in the same order. */
+  protected abstract insertPoemRows(client: unknown, rows: PoemRow[]): Promise<number[]>;
+
+  protected abstract insertSentenceRows(client: unknown, rows: SentenceRow[]): Promise<void>;
 
   protected abstract inTransaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 
@@ -176,8 +201,18 @@ class SqliteStore extends BaseStore {
     return row?.id;
   }
 
-  protected async insertPoemRows(client: unknown, rows: PoemRow[]): Promise<void> {
-    (client as SqliteStore["db"]).insert(sqliteSchema.poems).values(rows).run();
+  protected async insertPoemRows(client: unknown, rows: PoemRow[]): Promise<number[]> {
+    const inserted = (client as SqliteStore["db"])
+      .insert(sqliteSchema.poems)
+      .values(rows)
+      .returning({ id: sqliteSchema.poems.id })
+      .all();
+    return inserted.map((r) => r.id);
+  }
+
+  protected async insertSentenceRows(client: unknown, rows: SentenceRow[]): Promise<void> {
+    if (rows.length === 0) return;
+    (client as SqliteStore["db"]).insert(sqliteSchema.sentences).values(rows).run();
   }
 
   protected async inTransaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T> {
@@ -253,9 +288,22 @@ class AsyncDrizzleStore extends BaseStore {
     return rows[0]?.id;
   }
 
-  protected async insertPoemRows(client: unknown, rows: PoemRow[]): Promise<void> {
+  protected async insertPoemRows(client: unknown, rows: PoemRow[]): Promise<number[]> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (client as any).insert(this.tables.poems).values(rows);
+    const q = (client as any).insert(this.tables.poems).values(rows);
+    if (this.flavor === "mysql") {
+      // $returningId returns the first auto-increment id; the rest follow consecutively
+      const [{ id }] = await q.$returningId();
+      return rows.map((_, i) => id + i);
+    }
+    const inserted: { id: number }[] = await q.returning({ id: this.tables.poems.id });
+    return inserted.map((r) => r.id);
+  }
+
+  protected async insertSentenceRows(client: unknown, rows: SentenceRow[]): Promise<void> {
+    if (rows.length === 0) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (client as any).insert(this.tables.sentences).values(rows);
   }
 
   protected async inTransaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T> {
@@ -301,6 +349,7 @@ export async function createStore(options: StoreOptions): Promise<PoetryStore> {
       const db = drizzlePg(client, { schema: pgSchema });
       await migratePg(db, { migrationsFolder: join(MIGRATIONS, "postgresql") });
       if (options.fresh) {
+        await db.delete(pgSchema.sentences);
         await db.delete(pgSchema.poems);
         await db.delete(pgSchema.authors);
       }
@@ -318,6 +367,7 @@ export async function createStore(options: StoreOptions): Promise<PoetryStore> {
       const db = drizzleMysql(pool, { schema: mysqlSchema, mode: "default" });
       await migrateMysql(db, { migrationsFolder: join(MIGRATIONS, "mysql") });
       if (options.fresh) {
+        await db.delete(mysqlSchema.sentences);
         await db.delete(mysqlSchema.poems);
         await db.delete(mysqlSchema.authors);
       }

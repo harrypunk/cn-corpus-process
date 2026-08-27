@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bc2d1d5a-0cb2-4103-93bd-a524ad5bbb18",
+  "id": "807d487e-28b0-4b60-8baa-f59b913ca670",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "authors": {
@@ -135,6 +135,80 @@
           "tableTo": "authors",
           "columnsFrom": [
             "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "sentences": {
+      "name": "sentences",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "poem_id": {
+          "name": "poem_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text_search": {
+          "name": "text_search",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parts": {
+          "name": "parts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_sentences_poem": {
+          "name": "idx_sentences_poem",
+          "columns": [
+            "poem_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "sentences_poem_id_poems_id_fk": {
+          "name": "sentences_poem_id_poems_id_fk",
+          "tableFrom": "sentences",
+          "tableTo": "poems",
+          "columnsFrom": [
+            "poem_id"
           ],
           "columnsTo": [
             "id"

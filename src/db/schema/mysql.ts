@@ -41,3 +41,22 @@ export const poems = mysqlTable(
     index("idx_poems_title_search").on(t.titleSearch),
   ],
 );
+
+export const sentences = mysqlTable(
+  "sentences",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    poemId: int("poem_id")
+      .notNull()
+      .references(() => poems.id),
+    /** 0-based position within the poem. */
+    seq: int("seq").notNull(),
+    /** Original text (display). */
+    text: text("text").notNull(),
+    /** Simplified+NFKC form (search). */
+    textSearch: text("text_search").notNull(),
+    /** Number of comma-separated clauses. */
+    parts: int("parts").notNull(),
+  },
+  (t) => [index("idx_sentences_poem").on(t.poemId)],
+);

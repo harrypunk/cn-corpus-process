@@ -5,6 +5,7 @@ import { Deduper } from "./dedup.ts";
 import { cleanLine, cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
 import { makeClassifier, normalizeRecord, type FieldMapping } from "./record.ts";
 import { toSearchText } from "./search.ts";
+import { splitSentences } from "./sentence.ts";
 
 describe("cleanLine", () => {
   test("trims and strips CR", () => {
@@ -156,5 +157,31 @@ describe("normalizeRecord search forms", () => {
       expect(r.record.title).toBe("靜夜思");
       expect(r.record.titleSearch).toBe("静夜思");
     }
+  });
+});
+
+describe("splitSentences", () => {
+  test("splits on 。！？ and drops terminal punctuation", () => {
+    expect(splitSentences("床前明月光，疑是地上霜。举头望明月，低头思故乡。")).toEqual([
+      { text: "床前明月光，疑是地上霜", parts: 2 },
+      { text: "举头望明月，低头思故乡", parts: 2 },
+    ]);
+  });
+
+  test("handles line breaks and keeps going", () => {
+    expect(splitSentences("关关雎鸠，在河之洲。\n窈窕淑女，君子好逑。")).toEqual([
+      { text: "关关雎鸠，在河之洲", parts: 2 },
+      { text: "窈窕淑女，君子好逑", parts: 2 },
+    ]);
+  });
+
+  test("no sentence-final punctuation: whole line is one sentence", () => {
+    expect(splitSentences("大江东去，浪淘尽，千古风流人物")).toEqual([
+      { text: "大江东去，浪淘尽，千古风流人物", parts: 3 },
+    ]);
+  });
+
+  test("empty segments are dropped", () => {
+    expect(splitSentences("。。。")).toEqual([]);
   });
 });
