@@ -45,7 +45,9 @@ type AuthorRow = Omit<AuthorRecord, "dynasty"> & { dynasty: string };
 interface PoemRow {
   authorId: number;
   title: string;
+  titleSearch: string;
   content: string;
+  contentSearch: string;
   source: string;
 }
 
@@ -71,7 +73,9 @@ abstract class BaseStore implements PoetryStore {
       rows.push({
         authorId: await this.authorId(poem.author, poem.dynasty),
         title: poem.title,
+        titleSearch: poem.titleSearch,
         content: poem.content,
+        contentSearch: poem.contentSearch,
         source: poem.source,
       });
     }

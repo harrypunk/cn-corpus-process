@@ -21,10 +21,18 @@ export const poems = pgTable(
       .notNull()
       .references(() => authors.id),
     title: text("title").notNull(),
+    /** Simplified+NFKC search form. */
+    titleSearch: text("title_search").notNull(),
     /** Paragraphs joined with "\n". */
     content: text("content").notNull(),
+    /** Simplified+NFKC search form. */
+    contentSearch: text("content_search").notNull(),
     /** Corpus identifier, e.g. "quantangshi". */
     source: text("source").notNull(),
   },
-  (t) => [index("idx_poems_author").on(t.authorId), index("idx_poems_title").on(t.title)],
+  (t) => [
+    index("idx_poems_author").on(t.authorId),
+    index("idx_poems_title").on(t.title),
+    index("idx_poems_title_search").on(t.titleSearch),
+  ],
 );

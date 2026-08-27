@@ -10,10 +10,13 @@ CREATE TABLE `poems` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`author_id` integer NOT NULL,
 	`title` text NOT NULL,
+	`title_search` text NOT NULL,
 	`content` text NOT NULL,
+	`content_search` text NOT NULL,
 	`source` text NOT NULL,
 	FOREIGN KEY (`author_id`) REFERENCES `authors`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `idx_poems_author` ON `poems` (`author_id`);--> statement-breakpoint
-CREATE INDEX `idx_poems_title` ON `poems` (`title`);
+CREATE INDEX `idx_poems_title` ON `poems` (`title`);--> statement-breakpoint
+CREATE INDEX `idx_poems_title_search` ON `poems` (`title_search`);

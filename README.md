@@ -107,6 +107,9 @@ Dialect notes:
   regenerate the mysql migration from scratch.
 - Indexed MySQL columns must be bounded `varchar` (no index on `TEXT`), so
   `title` is `varchar(512)` there while other dialects use unbounded text.
+- Both CREATE TABLEs carry explicit `DEFAULT CHARSET=utf8mb4` (also a
+  hand-edit to the migration) so columns never inherit a latin1 database
+  default.
 
 ## Schema
 
@@ -123,8 +126,10 @@ CREATE TABLE poems (
   id INTEGER PRIMARY KEY,
   author_id INTEGER NOT NULL REFERENCES authors(id),
   title TEXT NOT NULL,
-  content TEXT NOT NULL,   -- paragraphs joined with \n
-  source TEXT NOT NULL     -- corpus id, e.g. 'quantangshi'
+  title_search TEXT NOT NULL,    -- simplified+NFKC form, for keyword search
+  content TEXT NOT NULL,         -- paragraphs joined with \n
+  content_search TEXT NOT NULL,  -- simplified+NFKC form, for keyword search
+  source TEXT NOT NULL           -- corpus id, e.g. 'quantangshi'
 );
 CREATE INDEX idx_poems_author ON poems(author_id);
 CREATE INDEX idx_poems_title ON poems(title);
@@ -153,6 +158,16 @@ poems are loaded.
 
 Not loaded (on purpose): `全唐诗/error/`, `宋词/ci.db`, `rank/`,
 `strains/`, `loader/`.
+
+## Search columns
+
+The game displays originals but queries simplified text. `title_search` /
+`content_search` are produced by `src/normalize/search.ts`
+(`toSearchText`): traditional → simplified via opencc-js (tw→cn preset;
+lossy in the safe direction — 發/髮 both become 发), then NFKC (fullwidth
+ASCII/punctuation → halfwidth). Query side should apply the same
+`toSearchText` to user input. Only `title_search` is indexed; use
+`LIKE '%…%'` on `content_search` (add FTS5/full-text later if needed).
 
 ## Cleaning rules
 

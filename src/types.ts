@@ -34,6 +34,10 @@ export interface PoemRecord {
   title: string;
   /** Paragraphs joined with "\n", already text-cleaned. */
   content: string;
+  /** Simplified+NFKC form of title, for keyword search (display uses title). */
+  titleSearch: string;
+  /** Simplified+NFKC form of content, for keyword search. */
+  contentSearch: string;
   /** Corpus identifier, e.g. "quantangshi", "songci". */
   source: string;
 }

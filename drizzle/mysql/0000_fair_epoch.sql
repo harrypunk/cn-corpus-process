@@ -5,17 +5,20 @@ CREATE TABLE `authors` (
 	`description` text,
 	CONSTRAINT `authors_id` PRIMARY KEY(`id`),
 	CONSTRAINT `authors_name_dynasty` UNIQUE(`name`,`dynasty`)
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --> statement-breakpoint
 CREATE TABLE `poems` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`author_id` int NOT NULL,
 	`title` varchar(512) NOT NULL,
+	`title_search` varchar(512) NOT NULL,
 	`content` text NOT NULL,
+	`content_search` text NOT NULL,
 	`source` varchar(64) NOT NULL,
 	CONSTRAINT `poems_id` PRIMARY KEY(`id`)
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --> statement-breakpoint
 ALTER TABLE `poems` ADD CONSTRAINT `poems_author_id_authors_id_fk` FOREIGN KEY (`author_id`) REFERENCES `authors`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX `idx_poems_author` ON `poems` (`author_id`);--> statement-breakpoint
-CREATE INDEX `idx_poems_title` ON `poems` (`title`);
+CREATE INDEX `idx_poems_title` ON `poems` (`title`);--> statement-breakpoint
+CREATE INDEX `idx_poems_title_search` ON `poems` (`title_search`);

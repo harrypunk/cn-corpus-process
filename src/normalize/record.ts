@@ -7,6 +7,7 @@
 import { DropReason, type Maybe, type NormalizeResult, type RawRecord } from "../types.ts";
 import { canonicalizeAuthor } from "./author.ts";
 import type { Deduper } from "./dedup.ts";
+import { toSearchText } from "./search.ts";
 import { cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
 
 export interface FieldMapping {
@@ -71,6 +72,8 @@ export function normalizeRecord(raw: RawRecord, map: FieldMapping): NormalizeRes
       dynasty: map.dynasty,
       title,
       content,
+      titleSearch: toSearchText(title),
+      contentSearch: toSearchText(content),
       source: map.source,
     },
   };

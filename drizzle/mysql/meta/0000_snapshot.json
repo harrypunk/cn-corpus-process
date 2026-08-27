@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "6c9b15b2-4551-46d3-b6c6-aaf30ad944b1",
+  "id": "f6f72e7c-70ff-4983-a655-18b49d21beca",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "authors": {
@@ -83,8 +83,22 @@
           "notNull": true,
           "autoincrement": false
         },
+        "title_search": {
+          "name": "title_search",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "content": {
           "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_search": {
+          "name": "content_search",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -110,6 +124,13 @@
           "name": "idx_poems_title",
           "columns": [
             "title"
+          ],
+          "isUnique": false
+        },
+        "idx_poems_title_search": {
+          "name": "idx_poems_title_search",
+          "columns": [
+            "title_search"
           ],
           "isUnique": false
         }

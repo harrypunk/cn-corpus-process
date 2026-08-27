@@ -1,5 +1,5 @@
 {
-  "id": "ff69a1a8-4a0a-4d09-89cc-17998fb397ba",
+  "id": "a1133301-255e-4705-8fb0-7d94b6285e2e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -86,8 +86,20 @@
           "primaryKey": false,
           "notNull": true
         },
+        "title_search": {
+          "name": "title_search",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "content": {
           "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_search": {
+          "name": "content_search",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -120,6 +132,21 @@
           "columns": [
             {
               "expression": "title",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_poems_title_search": {
+          "name": "idx_poems_title_search",
+          "columns": [
+            {
+              "expression": "title_search",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

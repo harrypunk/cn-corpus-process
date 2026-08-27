@@ -4,6 +4,7 @@ import { canonicalizeAuthor, ANONYMOUS } from "./author.ts";
 import { Deduper } from "./dedup.ts";
 import { cleanLine, cleanParagraphs, cleanTitle, containsReplacementChar } from "./text.ts";
 import { makeClassifier, normalizeRecord, type FieldMapping } from "./record.ts";
+import { toSearchText } from "./search.ts";
 
 describe("cleanLine", () => {
   test("trims and strips CR", () => {
@@ -131,5 +132,29 @@ describe("makeClassifier", () => {
     const raw = { author: "李白", title: "静夜思", paragraphs: ["床前明月光"] };
     expect(a(raw).ok).toBe(true);
     expect(b(raw)).toEqual({ ok: false, reason: DropReason.Duplicate });
+  });
+});
+
+describe("toSearchText", () => {
+  test("traditional to simplified", () => {
+    expect(toSearchText("天地英雄氣")).toBe("天地英雄气");
+    expect(toSearchText("髮發餘雲")).toBe("发发余云");
+  });
+  test("NFKC: fullwidth to halfwidth", () => {
+    expect(toSearchText("ＡＢＣ１２３")).toBe("ABC123");
+  });
+});
+
+describe("normalizeRecord search forms", () => {
+  test("record carries simplified search columns", () => {
+    const r = normalizeRecord(
+      { author: "李白", title: "靜夜思", paragraphs: ["床前明月光"] },
+      { paragraphs: "paragraphs", dynasty: "tang", source: "t" },
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.record.title).toBe("靜夜思");
+      expect(r.record.titleSearch).toBe("静夜思");
+    }
   });
 });

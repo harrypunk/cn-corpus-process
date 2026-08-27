@@ -26,10 +26,18 @@ export const poems = mysqlTable(
       .notNull()
       .references(() => authors.id),
     title: varchar("title", { length: 512 }).notNull(),
+    /** Simplified+NFKC search form. */
+    titleSearch: varchar("title_search", { length: 512 }).notNull(),
     /** Paragraphs joined with "\n". */
     content: text("content").notNull(),
+    /** Simplified+NFKC search form. */
+    contentSearch: text("content_search").notNull(),
     /** Corpus identifier, e.g. "quantangshi". */
     source: varchar("source", { length: 64 }).notNull(),
   },
-  (t) => [index("idx_poems_author").on(t.authorId), index("idx_poems_title").on(t.title)],
+  (t) => [
+    index("idx_poems_author").on(t.authorId),
+    index("idx_poems_title").on(t.title),
+    index("idx_poems_title_search").on(t.titleSearch),
+  ],
 );
