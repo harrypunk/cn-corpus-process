@@ -13,7 +13,7 @@ v1 在实践中暴露了两类前期估计不足的问题，重写时正面解�
 source(字节→文本) → parse(JSON→原始记录) → normalize(清洗/编码归一) → derive(sentences/search) → store(DB)
 ```
 
-- [x] **Phase 1 — 数据源抽象**（本次）
+- [x] **Phase 1 — 数据源抽象**
 - [ ] Phase 2 — 解析与归一化（含 BOM/NFKC/繁简策略的统一入口）
 - [ ] Phase 3 — 存储层（Drizzle，sqlite/postgres/mysql）
 - [ ] Phase 4 — 派生数据（sentences 表、简体检索列）
