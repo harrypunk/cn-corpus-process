@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Effect, Option, Stream } from "effect";
 import { stripBom } from "./text.ts";
 import { SourceError, type DataSource, type SourceFile } from "./types.ts";
 
@@ -57,28 +57,44 @@ export function createGiteaSource(options: GiteaOptions): DataSource {
     return (await res.json()) as TreeResponse;
   }
 
-  async function* listFiles(): AsyncGenerator<SourceFile> {
-    let page = 1;
-    let collected = 0;
-    for (;;) {
-      const data = await fetchTreePage(page);
-      if (data.tree.length === 0) return;
-      for (const entry of data.tree) {
-        if (wanted(entry)) yield { path: entry.path, size: entry.size };
-      }
-      collected += data.tree.length;
-      const lastPage =
-        data.total_count !== undefined
-          ? collected >= data.total_count
-          : data.tree.length < PER_PAGE;
-      if (lastPage) return;
-      page++;
-    }
+  /** Pagination cursor: which page to fetch next and how many entries seen so far. */
+  interface PageState {
+    readonly page: number;
+    readonly collected: number;
   }
+
+  const nextState = (state: PageState, data: TreeResponse): Option.Option<PageState> => {
+    const collected = state.collected + data.tree.length;
+    const lastPage =
+      data.tree.length === 0 ||
+      (data.total_count !== undefined
+        ? collected >= data.total_count
+        : data.tree.length < PER_PAGE);
+    return lastPage ? Option.none() : Option.some({ page: state.page + 1, collected });
+  };
+
+  /** All tree pages, pulled lazily until `nextState` says stop. */
+  const pages: Stream.Stream<TreeResponse, SourceError> = Stream.paginateEffect(
+    { page: 1, collected: 0 },
+    (state) =>
+      Effect.map(
+        Effect.tryPromise({
+          try: () => fetchTreePage(state.page),
+          catch: (cause) => fail("list", cause),
+        }),
+        (data) => [data, nextState(state, data)],
+      ),
+  );
+
+  const files: Stream.Stream<SourceFile, SourceError> = pages.pipe(
+    Stream.mapConcat((data) => data.tree),
+    Stream.filter(wanted),
+    Stream.map((entry) => ({ path: entry.path, size: entry.size })),
+  );
 
   return {
     name,
-    list: () => Stream.fromAsyncIterable(listFiles(), (cause) => fail("list", cause)),
+    list: () => files,
     read: (file) =>
       Effect.tryPromise({
         try: async () => {
