@@ -14,10 +14,11 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 ```
 
 - [x] **Phase 1 — 数据源抽象**（fs / gitea）
-- [x] **Phase 2 — 原始记录落库**（parse + raw sinks：PGlite / TiDB）
-- [ ] Phase 3 — 归一化（从 raw_records 读取；BOM/NFKC/繁简统一入口；写入结构化表）
-- [ ] Phase 4 — 派生数据（sentences 表、简体检索列）
-- [ ] Phase 5 — 检索与向量（关键词 + 语义混合召回）
+- [x] **Phase 2 — 原始记录落库**（parse + raw sinks：PGlite / TiDB；每个语料目录一个 ingest job）
+- [ ] **Phase 3 — ingest job 重构**（提取 ingest-* 公共部分，job 只留语料专属声明）
+- [ ] Phase 4 — 归一化（从 raw_records 读取；BOM/NFKC/繁简统一入口；写入结构化表）
+- [ ] Phase 5 — 派生数据（sentences 表、简体检索列）
+- [ ] Phase 6 — 检索与向量（关键词 + 语义混合召回）
 
 ## Phase 1 设计
 
@@ -50,12 +51,20 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 
 ## Phase 2 设计
 
-**目标**：pipeline 1 = `source → 按目录列举 → parse → sink`。原始记录原样落库（ELT），之后的清洗/转换全部从 raw 表读，不回打数据源。
+**目标**：`source → 路径过滤 → parse → sink`。原始记录原样落库（ELT），之后的清洗/转换全部从 raw 表读，不回打数据源。
+
+**job 组织**：每个语料目录一个 job 文件（`pipeline/ingest-<corpus>.ts`，`bun run <job>`）。路径过滤不在 parser 里，由 job 组合四样东西：
+
+1. **prefix** — source 列举范围（job 内锁定，如 `五代诗词`，不依赖 `ETL_PATH_PREFIXES`）
+2. **路径谓词** — 列举后过滤具体文件（如 `huajianji-*-juan.json`、`nantang/poetrys.json`；rank/、strains/、loader/ 等元数据由此排除）
+3. **parser** — 该语料的 JSON 结构
+4. **sink** — env 选择的落库实现
+
+现有 job：`ingest-wudai`（五代诗词：花间集 juan 文件 + 南唐 poetrys.json → `ciParser`）。
 
 **Parser 接口**（`src/parse/types.ts`）——parser 只负责 JSON→原始记录，纯函数：
 
 - `parse(text): RawRecord[]`；malformed 输入返回 `[]`
-- 路径过滤不在 parser 里，由 pipeline job 组合：job 选定 prefix、路径谓词（如 `huajianji-*-juan.json`）和对应 parser；rank/、strains/、loader/ 等元数据文件由此排除
 - 现有实现：`poemsParser`（`{author, title, paragraphs[]}`，如 `全唐诗/`、`元曲/`）、`ciParser`（`rhythmic→title`，notes 丢弃，如 `五代诗词/`）
 
 **Sink 接口**（`src/store/types.ts`）：
@@ -71,7 +80,6 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `TidbSink`（`src/store/tidb.ts`）— MySQL 协议（mysql2 + drizzle），`DATABASE_URL` 连接；`content longtext` 留足余量
 
 job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest`）：list → 路径过滤 → 并发读（8）→ parse → 每 500 条一批插入；`acquireRelease` 保证连接关闭。job 入口一个文件一个 job，`src/` 只放内部分层逻辑。
-
 配置（env）：
 
 - `ETL_PATH_PREFIXES` — 逗号分隔的语料目录（空 = 整个 source），fs/gitea 通用
@@ -81,8 +89,20 @@ job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest`）：list → 路径�
 
 验证：
 
-- `bun test` — parser 路由与各结构 fixture；ingest 用 fake source/sink；pglite sink 临时目录验证 insert-only 语义
-- `bun run ingest` — 冒烟：gitea → pglite / tidb，`五代诗词,元曲` 落 345,464 条，两库一致
+- `bun test` — parser 各结构 fixture；ingest 用 fake source/sink 覆盖路径过滤与组合；pglite sink 临时目录验证 insert-only 语义
+- `bun run ingest` — 冒烟：按当前 env 配置跑通 ingest-wudai（五代诗词：花间集 + 南唐词）
+
+## Phase 3 设计
+
+**目标**：随着 ingest-tang、ingest-quan-song 等 job 增加，把 ingest-* 的公共部分提取到共享模块，job 文件只保留语料专属声明。
+
+现状：公共逻辑都在 `ingest-wudai.ts` 里——`ingest()` 主流水线（list → filter → 并发读 → parse → 分批写入）、`READ_CONCURRENCY` / `BATCH_SIZE`、`acquireRelease` 资源接线、错误处理与计数日志。第二个 job 出现时这些会原样复制。
+
+提取方向：
+
+- 共享 ingest 核心（流水线 + 资源接线 + 入口骨架）下沉为一个模块，job 只声明：prefix、路径谓词、parser
+- job 文件目标形态：几条常量 + 一次调用，不含 Stream 组装细节
+- 同步更新 `bun run <job>` 脚本与测试（公共核心用 fake source/sink；job 只测各自的路径谓词）
 
 ## 已定原则（后续阶段遵守）
 
