@@ -6,8 +6,6 @@ import type { RawRecord } from "@src/store/types.ts";
  */
 export interface Parser {
   readonly name: string;
-  /** Whether this parser claims the given source-relative path. */
-  readonly match: (path: string) => boolean;
   /** Extract raw records. Total: malformed input yields []. */
   readonly parse: (text: string) => RawRecord[];
 }

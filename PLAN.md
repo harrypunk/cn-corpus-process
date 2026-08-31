@@ -52,11 +52,11 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 
 **目标**：pipeline 1 = `source → 按目录列举 → parse → sink`。原始记录原样落库（ELT），之后的清洗/转换全部从 raw 表读，不回打数据源。
 
-**Parser 接口**（`src/parse/types.ts`）——语料按目录分结构，每个 parser 声明自己认领的路径：
+**Parser 接口**（`src/parse/types.ts`）——parser 只负责 JSON→原始记录，纯函数：
 
-- `match(path): boolean` + `parse(text): RawRecord[]`；纯函数，malformed 输入返回 `[]`
-- `parseFile(path, text)` 路由：第一个 match 的 parser 处理；无人认领的文件（rank/、strains/、loader/ 等元数据）跳过
-- 现有实现：`poemsParser`（`全唐诗/`、`元曲/`，`{author, title, paragraphs[]}`）、`ciParser`（`五代诗词/`，`rhythmic→title`，notes 丢弃）
+- `parse(text): RawRecord[]`；malformed 输入返回 `[]`
+- 路径过滤不在 parser 里，由 pipeline job 组合：job 选定 prefix、路径谓词（如 `huajianji-*-juan.json`）和对应 parser；rank/、strains/、loader/ 等元数据文件由此排除
+- 现有实现：`poemsParser`（`{author, title, paragraphs[]}`，如 `全唐诗/`、`元曲/`）、`ciParser`（`rhythmic→title`，notes 丢弃，如 `五代诗词/`）
 
 **Sink 接口**（`src/store/types.ts`）：
 
@@ -70,7 +70,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `PgliteSink`（`src/store/pglite.ts`）— 嵌入式 Postgres（[PGlite](https://pglite.dev)，WASM），零服务依赖，默认数据目录 `./dist/pglite`
 - `TidbSink`（`src/store/tidb.ts`）— MySQL 协议（mysql2 + drizzle），`DATABASE_URL` 连接；`content longtext` 留足余量
 
-job 入口（`pipeline/ingest.ts`，`bun run ingest`）：list → 并发读（8）→ parseFile → 每 500 条一批插入；`acquireRelease` 保证连接关闭。job 入口一个文件一个 job，`src/` 只放内部分层逻辑。
+job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest`）：list → 路径过滤 → 并发读（8）→ parse → 每 500 条一批插入；`acquireRelease` 保证连接关闭。job 入口一个文件一个 job，`src/` 只放内部分层逻辑。
 
 配置（env）：
 

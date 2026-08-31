@@ -2,11 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { ciParser } from "./ci.ts";
 
 describe("ciParser", () => {
-  it("matches 五代诗词 paths", () => {
-    expect(ciParser.match("五代诗词/nantang/poetrys.json")).toBe(true);
-    expect(ciParser.match("全唐诗/poet.tang.0.json")).toBe(false);
-  });
-
   it("maps rhythmic to title and drops notes", () => {
     const text = JSON.stringify([
       {

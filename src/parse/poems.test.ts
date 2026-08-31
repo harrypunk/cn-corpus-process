@@ -2,12 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { poemsParser } from "./poems.ts";
 
 describe("poemsParser", () => {
-  it("matches 全唐诗 and 元曲 paths", () => {
-    expect(poemsParser.match("全唐诗/poet.tang.0.json")).toBe(true);
-    expect(poemsParser.match("元曲/yuanqu.json")).toBe(true);
-    expect(poemsParser.match("五代诗词/nantang/poetrys.json")).toBe(false);
-  });
-
   it("maps author/title/paragraphs, joining paragraph lines", () => {
     const text = JSON.stringify([
       {

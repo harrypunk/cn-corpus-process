@@ -5,7 +5,6 @@ import type { Parser } from "./types.ts";
 /** {rhythmic, author?, paragraphs[], notes?} 词 arrays, e.g. 五代诗词. Title falls back to rhythmic. */
 export const ciParser: Parser = {
   name: "ci",
-  match: (path) => path.startsWith("五代诗词/"),
   parse: (text): RawRecord[] =>
     parseObjectArray(text).map((r) => ({
       author: str(r.author),

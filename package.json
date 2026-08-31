@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ingest": "bun pipeline/ingest.ts",
+    "ingest": "bun pipeline/ingest-wudai.ts",
     "lint": "oxlint src pipeline",
     "lint:fix": "oxlint --fix src pipeline",
     "format": "oxfmt src pipeline",
