@@ -13,14 +13,13 @@ export class SinkError extends Data.TaggedError("SinkError")<{
   readonly sink: string;
   readonly operation: SinkOperation;
   readonly message: string;
-  readonly cause?: unknown;
 }> {}
 
 /** Curry a SinkError constructor bound to one sink name. */
 export const sinkError =
   (sink: string) =>
   (operation: SinkOperation, cause: unknown): SinkError =>
-    new SinkError({ sink, operation, message: String(cause), cause });
+    new SinkError({ sink, operation, message: String(cause) });
 
 /**
  * A raw-data landing target. Sinks persist what parse produced and nothing

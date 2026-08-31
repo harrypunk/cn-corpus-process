@@ -1,10 +1,10 @@
 import { Data, Effect, Stream } from "effect";
 
-/** A file candidate discovered by a DataSource. */
+/** A file that a DataSource has found and can read. */
 export interface SourceFile {
-  /** Source-relative POSIX path, e.g. "全唐诗/poet.tang.0.json". */
+  /** Path relative to the source root, using "/" separators, e.g. "全唐诗/poet.tang.0.json". */
   readonly path: string;
-  /** Byte size, when the source knows it cheaply. */
+  /** Size in bytes, if the source can report it without extra IO. */
   readonly size?: number;
 }
 
@@ -15,27 +15,37 @@ export class SourceError extends Data.TaggedError("SourceError")<{
   readonly operation: SourceOperation;
   readonly message: string;
   readonly path?: string;
-  readonly cause?: unknown;
 }> {}
 
-/** Curry a SourceError constructor bound to one source name. */
-export const sourceError =
-  (source: string) =>
-  (operation: SourceOperation, cause: unknown, path?: string): SourceError =>
-    new SourceError({ source, operation, message: String(cause), cause, path });
+/**
+ * Build an error factory for one source, so call sites don't repeat the source name:
+ *   const fail = sourceError("fs:/data");
+ *   fail("read", err, file.path) // => SourceError { source: "fs:/data", ... }
+ */
+export function sourceError(source: string) {
+  return function (operation: SourceOperation, cause: unknown, path?: string): SourceError {
+    return new SourceError({ source, operation, message: String(cause), path });
+  };
+}
 
 /**
- * A raw-text provider. Loaders turn bytes into UTF-8 text and nothing more:
- * no JSON parsing, no normalization — that is the parse/normalize layers' job.
+ * Provides raw text files from somewhere (local disk, gitea, ...).
+ * A source only turns bytes into UTF-8 text — JSON parsing and text
+ * normalization belong to the parse/normalize layers, not here.
  */
 export interface DataSource {
   readonly name: string;
-  /** Candidate files (e.g. *.json), in deterministic order. */
+  /** All candidate files (e.g. *.json), always in the same deterministic order. */
   readonly list: () => Stream.Stream<SourceFile, SourceError>;
-  /** File contents as UTF-8 text with BOM stripped. */
+  /** Full contents of a file as UTF-8 text, with any BOM removed. */
   readonly read: (file: SourceFile) => Effect.Effect<string, SourceError>;
 }
 
-/** Keep paths under any prefix; an empty list keeps everything. Prefixes carry no trailing slash. */
-export const underPrefixes = (path: string, prefixes: readonly string[]): boolean =>
-  prefixes.length === 0 || prefixes.some((prefix) => path.startsWith(`${prefix}/`));
+/**
+ * True if `path` sits inside one of the given directory prefixes.
+ * An empty prefix list means "no filter", i.e. everything matches.
+ * Prefixes are directory names without a trailing slash, e.g. "全唐诗".
+ */
+export function underPrefixes(path: string, prefixes: readonly string[]): boolean {
+  return prefixes.length === 0 || prefixes.some((prefix) => path.startsWith(`${prefix}/`));
+}
