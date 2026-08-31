@@ -50,31 +50,43 @@ function createGiteaClient(options: GiteaOptions, sourceName: string): GiteaClie
   const fail = (operation: "list" | "read", cause: unknown, path?: string) =>
     new SourceError({ source: sourceName, operation, message: String(cause), cause, path });
 
-  const get = async (url: string): Promise<Response> => {
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return res;
-  };
+  /** GET `url`; network failures and non-2xx responses land in the error channel. */
+  const get = (
+    url: string,
+    operation: "list" | "read",
+    path?: string,
+  ): Effect.Effect<Response, SourceError> =>
+    Effect.tryPromise({
+      try: () => fetch(url, { headers }),
+      catch: (cause) => fail(operation, cause, path),
+    }).pipe(
+      Effect.filterOrFail(
+        (res) => res.ok,
+        (res) => fail(operation, new Error(`HTTP ${res.status} for ${url}`), path),
+      ),
+    );
+
+  /** Parse a response body; parse failures land in the error channel. */
+  const body = <A>(
+    res: Response,
+    parse: (res: Response) => Promise<A>,
+    operation: "list" | "read",
+    path?: string,
+  ): Effect.Effect<A, SourceError> =>
+    Effect.tryPromise({ try: () => parse(res), catch: (cause) => fail(operation, cause, path) });
 
   return {
     treePage: (page) =>
-      Effect.tryPromise({
-        try: async () => {
-          const url =
-            `${repoApi}/git/trees/${encodeURIComponent(ref)}` +
-            `?recursive=true&per_page=${PER_PAGE}&page=${page}`;
-          return (await (await get(url)).json()) as TreeResponse;
-        },
-        catch: (cause) => fail("list", cause),
-      }),
+      get(
+        `${repoApi}/git/trees/${encodeURIComponent(ref)}` +
+          `?recursive=true&per_page=${PER_PAGE}&page=${page}`,
+        "list",
+      ).pipe(Effect.flatMap((res) => body(res, (r) => r.json() as Promise<TreeResponse>, "list"))),
     rawText: (path) =>
-      Effect.tryPromise({
-        try: async () => {
-          const url = `${repoApi}/raw/${encodePath(path)}?ref=${encodeURIComponent(ref)}`;
-          return stripBom(await (await get(url)).text());
-        },
-        catch: (cause) => fail("read", cause, path),
-      }),
+      get(`${repoApi}/raw/${encodePath(path)}?ref=${encodeURIComponent(ref)}`, "read", path).pipe(
+        Effect.flatMap((res) => body(res, (r) => r.text(), "read", path)),
+        Effect.map(stripBom),
+      ),
   };
 }
 
@@ -97,7 +109,7 @@ const listTreePages = (
   treePage: GiteaClient["treePage"],
 ): Stream.Stream<TreeResponse, SourceError> =>
   Stream.paginateEffect({ page: 1, collected: 0 }, (state) =>
-    Effect.map(treePage(state.page), (data) => [data, nextState(state, data)]),
+    treePage(state.page).pipe(Effect.map((data) => [data, nextState(state, data)] as const)),
   );
 
 /** Keep only *.json blobs under the prefix. */
