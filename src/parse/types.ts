@@ -1,4 +1,4 @@
-import type { RawRecord } from "../store/types.ts";
+import type { RawRecord } from "@src/store/types.ts";
 
 /**
  * Parses one source file's text into raw records. Pure: no IO, no cleansing —

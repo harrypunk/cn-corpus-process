@@ -1,5 +1,7 @@
 /** Central env-driven configuration. Bun loads .env automatically. */
 
+type Env = Record<string, string | undefined>;
+
 export interface FsSourceConfig {
   readonly kind: "fs";
   readonly root: string;
@@ -37,21 +39,21 @@ export interface AppConfig {
   readonly sink: SinkConfig;
 }
 
-function required(env: Record<string, string | undefined>, key: string): string {
+function required(env: Env, key: string): string {
   const value = env[key];
   if (!value) throw new Error(`Missing required env var: ${key}`);
   return value;
 }
 
 /** Comma-separated corpus dir prefixes; empty = the whole source. */
-function prefixes(env: Record<string, string | undefined>): readonly string[] {
+function prefixes(env: Env): readonly string[] {
   return (env.ETL_PATH_PREFIXES ?? "")
     .split(",")
     .map((s) => s.trim().replace(/\/+$/, ""))
     .filter((s) => s !== "");
 }
 
-function loadSource(env: Record<string, string | undefined>): SourceConfig {
+function loadSource(env: Env): SourceConfig {
   const kind = env.ETL_SOURCE_KIND ?? "fs";
   switch (kind) {
     case "fs":
@@ -73,7 +75,7 @@ function loadSource(env: Record<string, string | undefined>): SourceConfig {
   }
 }
 
-function loadSink(env: Record<string, string | undefined>): SinkConfig {
+function loadSink(env: Env): SinkConfig {
   const kind = env.ETL_SINK_KIND ?? "pglite";
   switch (kind) {
     case "pglite":
@@ -87,6 +89,6 @@ function loadSink(env: Record<string, string | undefined>): SinkConfig {
   }
 }
 
-export function loadConfig(env: Record<string, string | undefined> = process.env): AppConfig {
+export function loadConfig(env: Env = process.env): AppConfig {
   return { source: loadSource(env), sink: loadSink(env) };
 }

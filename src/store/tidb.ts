@@ -2,7 +2,7 @@ import { bigint, longtext, mysqlTable, varchar } from "drizzle-orm/mysql-core";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { Effect } from "effect";
-import { SinkError, type Sink } from "./types.ts";
+import { sinkError, type Sink, type SinkError } from "./types.ts";
 
 const rawRecords = mysqlTable("raw_records", {
   id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
@@ -23,8 +23,7 @@ CREATE TABLE IF NOT EXISTS raw_records (
 /** Sink over TiDB (MySQL protocol) via a connection pool. */
 export function createTidbSink(url: string): Effect.Effect<Sink, SinkError> {
   const name = `tidb:${url.replace(/^(\w+:\/\/)[^@]*@/, "$1***@")}`;
-  const fail = (operation: "init" | "write" | "close", cause: unknown) =>
-    new SinkError({ sink: name, operation, message: String(cause), cause });
+  const fail = sinkError(name);
 
   return Effect.gen(function* () {
     const pool = mysql.createPool(url);

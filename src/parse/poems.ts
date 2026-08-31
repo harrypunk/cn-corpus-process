@@ -1,4 +1,4 @@
-import type { RawRecord } from "../store/types.ts";
+import type { RawRecord } from "@src/store/types.ts";
 import { joinLines, parseObjectArray, str } from "./json.ts";
 import type { Parser } from "./types.ts";
 

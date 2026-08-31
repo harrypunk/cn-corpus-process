@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { bigserial, pgTable, text } from "drizzle-orm/pg-core";
 import { Effect } from "effect";
-import { SinkError, type Sink } from "./types.ts";
+import { sinkError, type Sink, type SinkError } from "./types.ts";
 
 const rawRecords = pgTable("raw_records", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -22,8 +22,7 @@ CREATE TABLE IF NOT EXISTS raw_records (
 /** Sink over embedded Postgres (PGlite, WASM) — zero external services. */
 export function createPgliteSink(dataDir: string): Effect.Effect<Sink, SinkError> {
   const name = `pglite:${dataDir}`;
-  const fail = (operation: "init" | "write" | "close", cause: unknown) =>
-    new SinkError({ sink: name, operation, message: String(cause), cause });
+  const fail = sinkError(name);
 
   return Effect.gen(function* () {
     const client = new PGlite(dataDir);

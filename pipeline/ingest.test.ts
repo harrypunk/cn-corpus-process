@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { Effect, Stream } from "effect";
-import type { DataSource } from "../src/source/index.ts";
-import type { RawRecord, Sink } from "../src/store/index.ts";
+import type { DataSource } from "@src/source/index.ts";
+import type { RawRecord, Sink } from "@src/store/index.ts";
 import { ingest } from "./ingest.ts";
 
 const fakeSource = (files: Record<string, string>): DataSource => ({

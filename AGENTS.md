@@ -29,6 +29,9 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `src/store/` — Sink layer: raw_records (pglite, tidb)
 - `src/config.ts` — env config, the only module that reads `process.env`
 
+Imports: cross-directory via the `@src/*` alias (tsconfig `paths`), same-directory stays
+relative (`./foo.ts`).
+
 ## Rules
 
 ### Separation of concerns

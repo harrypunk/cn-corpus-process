@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { SinkConfig } from "../config.ts";
+import type { SinkConfig } from "@src/config.ts";
 import { createPgliteSink } from "./pglite.ts";
 import { createTidbSink } from "./tidb.ts";
 import type { Sink, SinkError } from "./types.ts";

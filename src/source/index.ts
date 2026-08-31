@@ -1,4 +1,4 @@
-import type { SourceConfig } from "../config.ts";
+import type { SourceConfig } from "@src/config.ts";
 import { createGiteaSource } from "./gitea.ts";
 import { createLocalFsSource } from "./local-fs.ts";
 import type { DataSource } from "./types.ts";

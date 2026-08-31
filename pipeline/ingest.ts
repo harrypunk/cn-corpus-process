@@ -4,10 +4,10 @@
  */
 
 import { Chunk, Console, Effect, Stream } from "effect";
-import { loadConfig } from "../src/config.ts";
-import { parseFile } from "../src/parse/index.ts";
-import { createSource, type DataSource, type SourceError } from "../src/source/index.ts";
-import { createSink, type Sink, type SinkError } from "../src/store/index.ts";
+import { loadConfig } from "@src/config.ts";
+import { parseFile } from "@src/parse/index.ts";
+import { createSource, type DataSource, type SourceError } from "@src/source/index.ts";
+import { createSink, type Sink, type SinkError } from "@src/store/index.ts";
 
 const READ_CONCURRENCY = 8;
 const BATCH_SIZE = 500;

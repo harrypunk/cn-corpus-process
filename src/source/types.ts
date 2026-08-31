@@ -8,13 +8,21 @@ export interface SourceFile {
   readonly size?: number;
 }
 
+export type SourceOperation = "list" | "read";
+
 export class SourceError extends Data.TaggedError("SourceError")<{
   readonly source: string;
-  readonly operation: "list" | "read";
+  readonly operation: SourceOperation;
   readonly message: string;
   readonly path?: string;
   readonly cause?: unknown;
 }> {}
+
+/** Curry a SourceError constructor bound to one source name. */
+export const sourceError =
+  (source: string) =>
+  (operation: SourceOperation, cause: unknown, path?: string): SourceError =>
+    new SourceError({ source, operation, message: String(cause), cause, path });
 
 /**
  * A raw-text provider. Loaders turn bytes into UTF-8 text and nothing more:

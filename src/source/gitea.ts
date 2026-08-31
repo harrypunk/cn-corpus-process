@@ -1,6 +1,13 @@
 import { Effect, Option, Stream } from "effect";
 import { stripBom } from "./text.ts";
-import { SourceError, underPrefixes, type DataSource, type SourceFile } from "./types.ts";
+import {
+  sourceError,
+  underPrefixes,
+  type DataSource,
+  type SourceError,
+  type SourceFile,
+  type SourceOperation,
+} from "./types.ts";
 
 export interface GiteaOptions {
   /** e.g. "https://gitea.example.com" (no trailing slash). */
@@ -47,13 +54,12 @@ function createGiteaClient(options: GiteaOptions, sourceName: string): GiteaClie
     ? { authorization: `token ${options.token}` }
     : {};
 
-  const fail = (operation: "list" | "read", cause: unknown, path?: string) =>
-    new SourceError({ source: sourceName, operation, message: String(cause), cause, path });
+  const fail = sourceError(sourceName);
 
   /** GET `url`; network failures and non-2xx responses land in the error channel. */
   const get = (
     url: string,
-    operation: "list" | "read",
+    operation: SourceOperation,
     path?: string,
   ): Effect.Effect<Response, SourceError> =>
     Effect.tryPromise({
@@ -70,7 +76,7 @@ function createGiteaClient(options: GiteaOptions, sourceName: string): GiteaClie
   const body = <A>(
     res: Response,
     parse: (res: Response) => Promise<A>,
-    operation: "list" | "read",
+    operation: SourceOperation,
     path?: string,
   ): Effect.Effect<A, SourceError> =>
     Effect.tryPromise({ try: () => parse(res), catch: (cause) => fail(operation, cause, path) });
