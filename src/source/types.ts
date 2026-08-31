@@ -18,7 +18,7 @@ export class SourceError extends Data.TaggedError("SourceError")<{
 
 /**
  * A raw-text provider. Loaders turn bytes into UTF-8 text and nothing more:
- * no JSON parsing, no normalization — that is the normalize layer's job.
+ * no JSON parsing, no normalization — that is the parse/normalize layers' job.
  */
 export interface DataSource {
   readonly name: string;
@@ -27,3 +27,7 @@ export interface DataSource {
   /** File contents as UTF-8 text with BOM stripped. */
   readonly read: (file: SourceFile) => Effect.Effect<string, SourceError>;
 }
+
+/** Keep paths under any prefix; an empty list keeps everything. Prefixes carry no trailing slash. */
+export const underPrefixes = (path: string, prefixes: readonly string[]): boolean =>
+  prefixes.length === 0 || prefixes.some((prefix) => path.startsWith(`${prefix}/`));

@@ -2,12 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { Effect, Stream } from "effect";
 import { stripBom } from "./text.ts";
-import { SourceError, type DataSource, type SourceFile } from "./types.ts";
-
-export interface LocalFsOptions {
-  /** Keep only matching files. Default: `*.json`. */
-  readonly match?: (path: string) => boolean;
-}
+import { SourceError, underPrefixes, type DataSource, type SourceFile } from "./types.ts";
 
 /** Code-unit comparison: locale-independent, so listing order is deterministic. */
 const byName = (a: { name: string }, b: { name: string }): number =>
@@ -30,9 +25,9 @@ async function* walk(
   }
 }
 
-/** DataSource over a local chinese-poetry checkout. */
-export function createLocalFsSource(root: string, options: LocalFsOptions = {}): DataSource {
-  const match = options.match ?? ((path: string) => path.endsWith(".json"));
+/** DataSource over a local chinese-poetry checkout; `prefixes` limits listing ([] = whole root). */
+export function createLocalFsSource(root: string, prefixes: readonly string[] = []): DataSource {
+  const match = (path: string) => path.endsWith(".json") && underPrefixes(path, prefixes);
   const fail = (operation: "list" | "read", cause: unknown, path?: string) =>
     new SourceError({ source: `fs:${root}`, operation, message: String(cause), cause, path });
 

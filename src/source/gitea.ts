@@ -1,6 +1,6 @@
 import { Effect, Option, Stream } from "effect";
 import { stripBom } from "./text.ts";
-import { SourceError, type DataSource, type SourceFile } from "./types.ts";
+import { SourceError, underPrefixes, type DataSource, type SourceFile } from "./types.ts";
 
 export interface GiteaOptions {
   /** e.g. "https://gitea.example.com" (no trailing slash). */
@@ -11,8 +11,8 @@ export interface GiteaOptions {
   readonly ref: string;
   /** Access token for private repos. */
   readonly token?: string;
-  /** Limit listing to this subdirectory; "" means the whole repo. */
-  readonly pathPrefix?: string;
+  /** Limit listing to these subdirectories; [] means the whole repo. */
+  readonly prefixes?: readonly string[];
 }
 
 const PER_PAGE = 1000;
@@ -112,13 +112,11 @@ const listTreePages = (
     treePage(state.page).pipe(Effect.map((data) => [data, nextState(state, data)] as const)),
   );
 
-/** Keep only *.json blobs under the prefix. */
+/** Keep only *.json blobs under any of the prefixes. */
 const jsonBlobsUnder =
-  (prefix: string) =>
+  (prefixes: readonly string[]) =>
   (entry: TreeEntry): boolean =>
-    entry.type === "blob" &&
-    entry.path.endsWith(".json") &&
-    (prefix === "" || entry.path.startsWith(`${prefix}/`));
+    entry.type === "blob" && entry.path.endsWith(".json") && underPrefixes(entry.path, prefixes);
 
 /** DataSource over a Gitea repository via its HTTP API. */
 export function createGiteaSource(options: GiteaOptions): DataSource {
@@ -127,7 +125,7 @@ export function createGiteaSource(options: GiteaOptions): DataSource {
 
   const files: Stream.Stream<SourceFile, SourceError> = listTreePages(client.treePage).pipe(
     Stream.mapConcat((data) => data.tree),
-    Stream.filter(jsonBlobsUnder(options.pathPrefix ?? "")),
+    Stream.filter(jsonBlobsUnder(options.prefixes ?? [])),
     Stream.map((entry): SourceFile => ({ path: entry.path, size: entry.size })),
   );
 

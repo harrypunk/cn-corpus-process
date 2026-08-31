@@ -5,13 +5,12 @@ Guidance for agents working in this repository.
 ## Project
 
 ETL pipeline for the [chinese-poetry](https://github.com/chinese-poetry/chinese-poetry) corpus.
-v2 redesign in progress on branch `redesign-v2` — phases and layer boundaries are defined in
-[PLAN.md](PLAN.md); read it before adding a stage.
+Phases and layer boundaries are defined in [PLAN.md](PLAN.md); read it before adding a stage.
 
 Pipeline layers, each with a single responsibility:
 
 ```
-source(字节→文本) → parse(JSON→原始记录) → normalize(清洗/编码归一) → derive(sentences/search) → store(DB)
+source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → normalize(清洗/编码归一) → derive(sentences/search) → store(结构化表)
 ```
 
 ## Stack & commands
@@ -19,8 +18,16 @@ source(字节→文本) → parse(JSON→原始记录) → normalize(清洗/编�
 - Runtime: **Bun** (TypeScript, ESM, `.ts` import extensions)
 - Core libs: **Effect** (Stream/Effect/Data.TaggedError), drizzle-orm, opencc-js
 - `bun install` — install deps
-- `bun run etl` — run the pipeline (smoke-stage currently)
+- `bun run ingest` — run the ingest job (entry `pipeline/ingest.ts`)
 - `bun run check` — **must stay green**: oxlint + oxfmt + tsc --noEmit + bun test
+
+## Layout
+
+- `pipeline/` — job entries (`bun run <job>`), one file per job; thin wiring only
+- `src/source/` — DataSource layer: bytes→text (fs, gitea)
+- `src/parse/` — Parser layer: text→RawRecord, pure
+- `src/store/` — Sink layer: raw_records (pglite, tidb)
+- `src/config.ts` — env config, the only module that reads `process.env`
 
 ## Rules
 
@@ -29,7 +36,7 @@ source(字节→文本) → parse(JSON→原始记录) → normalize(清洗/编�
 - Respect the layer boundaries: `source` turns bytes into UTF-8 text and nothing more;
   parsing, normalization (BOM/NFKC/繁简), derivation, and storage each live in their own layer.
   Never let a concern leak into a neighboring layer.
-- Pure functions vs side effects: `normalize`/`parse`/`derive` are pure and synchronous;
+- Pure functions vs side effects: `parse`/`normalize`/`derive` are pure and synchronous;
   all IO lives in `source` and `store`. No `fetch`, `fs`, or `process.env` access outside
   config/source/store modules.
 - All configuration comes from env via `src/config.ts` (Bun loads `.env` automatically).

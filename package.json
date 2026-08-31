@@ -2,17 +2,17 @@
   "name": "chinese-peotry-process",
   "private": true,
   "type": "module",
-  "module": "index.ts",
   "scripts": {
-    "etl": "bun src/index.ts",
-    "lint": "oxlint src",
-    "lint:fix": "oxlint --fix src",
-    "format": "oxfmt src",
-    "format:check": "oxfmt --check src",
+    "ingest": "bun pipeline/ingest.ts",
+    "lint": "oxlint src pipeline",
+    "lint:fix": "oxlint --fix src pipeline",
+    "format": "oxfmt src pipeline",
+    "format:check": "oxfmt --check src pipeline",
     "typecheck": "tsc --noEmit",
     "check": "bun run lint && bun run format:check && bun run typecheck && bun test"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "drizzle-orm": "^0.45.2",
     "effect": "^3.22.1",
     "mysql2": "^3.24.2",

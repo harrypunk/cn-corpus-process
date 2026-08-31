@@ -61,10 +61,16 @@ describe("GiteaSource", () => {
     expect(seenAuth).toBe("token secret");
   });
 
-  it("pathPrefix limits listing to a subdirectory", async () => {
-    const source = createGiteaSource({ ...options(), pathPrefix: "b" });
+  it("prefixes limit listing to the given subdirectories", async () => {
+    const source = createGiteaSource({ ...options(), prefixes: ["b"] });
     const files = Chunk.toReadonlyArray(await Effect.runPromise(Stream.runCollect(source.list())));
     expect(files.map((f) => f.path)).toEqual(["b/two.json"]);
+  });
+
+  it("multiple prefixes union their subdirectories", async () => {
+    const source = createGiteaSource({ ...options(), prefixes: ["a", "b"] });
+    const files = Chunk.toReadonlyArray(await Effect.runPromise(Stream.runCollect(source.list())));
+    expect(files.map((f) => f.path)).toEqual(["a/one.json", "b/two.json"]);
   });
 
   it("reads raw file content with BOM stripped", async () => {

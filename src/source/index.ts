@@ -10,7 +10,7 @@ export { createGiteaSource, createLocalFsSource };
 export function createSource(config: SourceConfig): DataSource {
   switch (config.kind) {
     case "fs":
-      return createLocalFsSource(config.root);
+      return createLocalFsSource(config.root, config.prefixes);
     case "gitea":
       return createGiteaSource(config);
   }

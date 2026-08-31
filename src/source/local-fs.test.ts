@@ -26,6 +26,12 @@ describe("LocalFsSource", () => {
     expect(files.map((f) => f.path)).toEqual(["b.json", "tang/a.json"]);
   });
 
+  it("prefixes limit listing to the given dirs", async () => {
+    const source = createLocalFsSource(root, ["tang"]);
+    const files = Chunk.toReadonlyArray(await Effect.runPromise(Stream.runCollect(source.list())));
+    expect(files.map((f) => f.path)).toEqual(["tang/a.json"]);
+  });
+
   it("reads utf-8 text with BOM stripped", async () => {
     const source = createLocalFsSource(root);
     const text = await Effect.runPromise(source.read({ path: "b.json" }));
