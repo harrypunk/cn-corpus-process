@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { Effect, Stream } from "effect";
@@ -8,22 +9,29 @@ import { sourceError, underPrefixes, type DataSource, type SourceFile } from "./
 const byName = (a: { name: string }, b: { name: string }): number =>
   a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
 
-async function* walk(
+/** Entries of one directory, sorted by name. Failures stay raw; the caller maps them. */
+const entriesOf = (dir: string): Effect.Effect<Dirent[], unknown> =>
+  Effect.tryPromise({
+    try: () => readdir(dir, { withFileTypes: true }),
+    catch: (cause) => cause,
+  }).pipe(Effect.map((entries) => entries.sort(byName)));
+
+/** Every file under `dir` accepted by `match`, depth-first in sorted-entry order. */
+const walk = (
   dir: string,
   root: string,
   match: (path: string) => boolean,
-): AsyncGenerator<SourceFile> {
-  const entries = (await readdir(dir, { withFileTypes: true })).sort(byName);
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      yield* walk(full, root, match);
-    } else if (entry.isFile()) {
+): Stream.Stream<SourceFile, unknown> =>
+  Stream.fromEffect(entriesOf(dir)).pipe(
+    Stream.mapConcat((entries) => entries),
+    Stream.flatMap((entry) => {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) return walk(full, root, match);
+      if (!entry.isFile()) return Stream.empty;
       const rel = relative(root, full).split(sep).join("/");
-      if (match(rel)) yield { path: rel };
-    }
-  }
-}
+      return match(rel) ? Stream.succeed({ path: rel }) : Stream.empty;
+    }),
+  );
 
 /** DataSource over a local chinese-poetry checkout; `prefixes` limits listing ([] = whole root). */
 export function createLocalFsSource(root: string, prefixes: readonly string[] = []): DataSource {
@@ -32,11 +40,11 @@ export function createLocalFsSource(root: string, prefixes: readonly string[] = 
 
   return {
     name: `fs:${root}`,
-    list: () => Stream.fromAsyncIterable(walk(root, root, match), (cause) => fail("list", cause)),
+    list: () => walk(root, root, match).pipe(Stream.mapError((cause) => fail("list", cause))),
     read: (file) =>
       Effect.tryPromise({
-        try: async () => stripBom(await readFile(join(root, file.path), "utf8")),
+        try: () => readFile(join(root, file.path), "utf8"),
         catch: (cause) => fail("read", cause, file.path),
-      }),
+      }).pipe(Effect.map(stripBom)),
   };
 }
