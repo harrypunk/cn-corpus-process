@@ -60,12 +60,12 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 3. **parser** — 该语料的 JSON 结构
 4. **sink** — env 选择的落库实现
 
-现有 job：`ingest-wudai`（五代诗词：花间集 juan 文件 + 南唐 poetrys.json → `ciParser`）、`ingest-quantangshi`（全唐诗：poet.tang/poet.song + 三百首/补录 → `poemsParser`）、`ingest-songci`（宋词：ci.song.* + 宋词三百首 → `ciParser`）、`ingest-shuimotangshi`（水墨唐诗：shuimotangshi.json → `poemsParser`）。
+现有 job：`ingest-wudai`（五代诗词：花间集 juan 文件 + 南唐 poetrys.json → `ciParser`）、`ingest-quantangshi`（全唐诗：poet.tang/poet.song + 三百首/补录 → `poemsParser`）、`ingest-songci`（宋词：ci.song.* + 宋词三百首 → `ciParser`）、`ingest-shuimotangshi`（水墨唐诗：shuimotangshi.json → `poemsParser`）、`ingest-caocao` / `ingest-chuci` / `ingest-nalan` / `ingest-shijing`（单文件语料 → `mappedParser` 字段映射）。
 
 **Parser 接口**（`src/parse/types.ts`）——parser 只负责 JSON→原始记录，纯函数：
 
 - `parse(text): RawRecord[]`；malformed 输入返回 `[]`
-- 现有实现：`poemsParser`（`{author, title, paragraphs[]}`，如 `全唐诗/`、`元曲/`）、`ciParser`（`rhythmic→title`，notes 丢弃，如 `五代诗词/`）
+- 现有实现：`poemsParser`（`{author, title, paragraphs[]}`，如 `全唐诗/`、`元曲/`）、`ciParser`（`rhythmic→title`，notes 丢弃，如 `五代诗词/`）、`mappedParser(name, FieldMapping)`（字段映射工厂：`paragraphs` 指定行数组字段，`defaultAuthor` 补缺失作者，`titlePrefix` 拼章节前缀，覆盖 楚辞/纳兰性德/诗经/曹操诗集 等无统一 schema 的语料）
 
 **Sink 接口**（`src/store/types.ts`）：
 
