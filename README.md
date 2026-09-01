@@ -48,7 +48,7 @@ gitea 实现只用到两个 REST 端点（`src/source/gitea.ts`；
 路径过滤在 job 里声明，rank/、strains/、loader/ 等元数据文件由此排除。
 
 原始记录写入 `raw_records(id, author, title, content)`——insert-only staging，重跑会重复，
-dedup 归 Phase 3。`ETL_SINK_KIND` 选择 sink（`src/store/`）：
+dedup 归归一化阶段。`ETL_SINK_KIND` 选择 sink（`src/store/`）：
 
 - **pglite**（默认）— 嵌入式 Postgres（[PGlite](https://pglite.dev)，WASM），零服务依赖；
   可选 `PGLITE_DATA_DIR`（默认 `./dist/pglite`）

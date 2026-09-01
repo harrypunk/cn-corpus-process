@@ -16,9 +16,10 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - [x] **Phase 1 — 数据源抽象**（fs / gitea）
 - [x] **Phase 2 — 原始记录落库**（parse + raw sinks：PGlite / TiDB；每个语料目录一个 ingest job）
 - [x] **Phase 3 — ingest job 重构**（提取 ingest-* 公共部分，job 只留语料专属声明）
-- [ ] Phase 4 — 归一化（从 raw_records 读取；BOM/NFKC/繁简统一入口；写入结构化表）
-- [ ] Phase 5 — 派生数据（sentences 表、简体检索列）
-- [ ] Phase 6 — 检索与向量（关键词 + 语义混合召回）
+- [ ] **Phase 4 — 横切关注**（ingest 日志/指标/报告：事件流 + 独立订阅 stream）
+- [ ] Phase 5 — 归一化（从 raw_records 读取；BOM/NFKC/繁简统一入口；写入结构化表）
+- [ ] Phase 6 — 派生数据（sentences 表、简体检索列）
+- [ ] Phase 7 — 检索与向量（关键词 + 语义混合召回）
 
 ## Phase 1 设计
 
@@ -29,7 +30,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `list(): Stream<SourceFile, SourceError>` — 列出候选文件（过滤 `*.json`，顺序确定）
 - `read(file): Effect<string, SourceError>` — 读出 UTF-8 文本（去 BOM）
 
-**职责边界**：loader 只负责 字节→文本。JSON 解析是 Phase 2 parse 层的事，繁简/NFKC 是 Phase 3 的事。这是编码问题的第一道闸门：所有文本进入系统时保证是无 BOM 的 UTF-8。
+**职责边界**：loader 只负责 字节→文本。JSON 解析是 parse 层的事，繁简/NFKC 是归一化阶段的事。这是编码问题的第一道闸门：所有文本进入系统时保证是无 BOM 的 UTF-8。
 
 实现：
 
@@ -72,7 +73,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `writeRaw(records): Effect<void, SinkError>` — 批量插入
 - `close(): Effect<void, SinkError>` — 释放连接
 
-表：`raw_records(id, author, title, content)`。**insert-only staging**：此阶段没有天然主键，重跑会重复——dedup 归 Phase 3。
+表：`raw_records(id, author, title, content)`。**insert-only staging**：此阶段没有天然主键，重跑会重复——dedup 归归一化阶段。
 
 实现：
 
@@ -101,6 +102,31 @@ job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest:wudai`）：list → �
 结果：公共核心在 `pipeline/ingest.ts`——`ingest()` 主流水线（list → filter → 并发读 8 → parse → 每 500 条一批写入）、`runIngestJob()` 入口骨架（loadConfig → source/sink 组合 → `acquireRelease` 清理 → 计数日志）。job 文件只声明三条：corpus dir、路径谓词、parser，加 `if (import.meta.main)` 一行调用。
 
 测试：核心用 fake source/sink 覆盖（过滤、parse、分批、计数）；job 是无逻辑的薄入口，不配测试。
+
+## Phase 4 设计
+
+**目标**：横切关注（日志 / 指标 / 完成报告）从主流水线剥离。`ingest()` 只做数据流；可观测性由独立 stream 订阅同一事件流完成——pipeline 代码不出现 Console、计数器、Metric。
+
+**现状问题**：
+
+- 完成报告只是 `runIngestJob` 末尾一行 Console.log 总数；列出多少文件、过滤掉多少、哪些文件解析为空、哪些失败——都不可见
+- 单文件 read 失败即整流失败，大语料重跑成本高，且报告里没有失败清单
+- 没有指标，排障靠猜
+
+**设计**：事件流 + 广播订阅
+
+1. **事件类型**：`IngestEvent = FileListed | FileSkipped | FileRead | RecordsParsed(records) | FileFailed(path, message)`——数据事件携带记录，其余只带事实
+2. **核心改造**：`ingest()` 产出 `Stream<IngestEvent, SourceError>`，各 stage 只负责发事件，不再直接调用 sink，也不感知"谁在听"（DIP）
+3. **订阅者**（各自一条独立 stream，`Stream.broadcast` 扇出、并发消费）：
+   - `sinkWriter` — 收集 `RecordsParsed` 的记录，`grouped(batchSize)` → `writeRaw`
+   - `metricsCollector` — `runFold` 聚合：files listed/skipped/read/failed、records、批次数、耗时
+   - `progressLogger` — 低频进度日志；失败事件即记
+4. **完成报告** = metrics 的最终 fold，由 `runIngestJob` 统一输出一行汇总（含失败文件清单），不再散点打日志
+5. **失败策略**：单文件 read/parse 失败降级为 `FileFailed` 事件继续跑，报告里可见；不再因为一条坏数据整流失败
+
+**取舍**：替代方案是 Effect `Metric` 计数器在各 tap 点直接打点——更简单，但观测逻辑渗回 pipeline，且"过滤掉的文件"这类事件没有记录载体。事件流让新增订阅者（如 JSONL 审计日志）不改 pipeline 一行。
+
+**验证**：fake source 断言事件序列；各订阅者独立单测；真实 job 冒烟看汇总输出。
 
 ## 已定原则（后续阶段遵守）
 
