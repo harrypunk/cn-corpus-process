@@ -80,4 +80,29 @@ describe("loadConfig", () => {
       "ETL_SINK_KIND",
     );
   });
+
+  it("defaults ingest tuning to 8 / 500", () => {
+    expect(loadConfig({ POETRY_ROOT: "/data" }).ingest).toEqual({
+      readConcurrency: 8,
+      batchSize: 500,
+    });
+  });
+
+  it("honours ingest tuning overrides", () => {
+    const config = loadConfig({
+      POETRY_ROOT: "/data",
+      ETL_READ_CONCURRENCY: "16",
+      ETL_BATCH_SIZE: "1000",
+    });
+    expect(config.ingest).toEqual({ readConcurrency: 16, batchSize: 1000 });
+  });
+
+  it("rejects non-positive ingest tuning", () => {
+    expect(() => loadConfig({ POETRY_ROOT: "/data", ETL_BATCH_SIZE: "0" })).toThrow(
+      "ETL_BATCH_SIZE",
+    );
+    expect(() => loadConfig({ POETRY_ROOT: "/data", ETL_READ_CONCURRENCY: "x" })).toThrow(
+      "ETL_READ_CONCURRENCY",
+    );
+  });
 });

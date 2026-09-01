@@ -34,15 +34,34 @@ export interface TidbSinkConfig {
 
 export type SinkConfig = PgliteSinkConfig | TidbSinkConfig;
 
+export interface IngestConfig {
+  /** Concurrent file reads during ingest. */
+  readonly readConcurrency: number;
+  /** Records per writeRaw batch. */
+  readonly batchSize: number;
+}
+
 export interface AppConfig {
   readonly source: SourceConfig;
   readonly sink: SinkConfig;
+  readonly ingest: IngestConfig;
 }
 
 function required(env: Env, key: string): string {
   const value = env[key];
   if (!value) throw new Error(`Missing required env var: ${key}`);
   return value;
+}
+
+/** Positive integer env var with a fallback default. */
+function positiveInt(env: Env, key: string, fallback: number): number {
+  const raw = env[key];
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`Invalid ${key}: ${JSON.stringify(raw)} (positive integer expected)`);
+  }
+  return n;
 }
 
 /** Comma-separated corpus dir prefixes; empty = the whole source. */
@@ -90,5 +109,12 @@ function loadSink(env: Env): SinkConfig {
 }
 
 export function loadConfig(env: Env = process.env): AppConfig {
-  return { source: loadSource(env), sink: loadSink(env) };
+  return {
+    source: loadSource(env),
+    sink: loadSink(env),
+    ingest: {
+      readConcurrency: positiveInt(env, "ETL_READ_CONCURRENCY", 8),
+      batchSize: positiveInt(env, "ETL_BATCH_SIZE", 500),
+    },
+  };
 }

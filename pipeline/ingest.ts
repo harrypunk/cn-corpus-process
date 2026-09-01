@@ -16,24 +16,31 @@ import {
 } from "@src/source/index.ts";
 import { createSink, type Sink, type SinkError } from "@src/store/index.ts";
 
-const READ_CONCURRENCY = 8;
-const BATCH_SIZE = 500;
+/** Tuning knobs for the ingest pipeline, normally from env (see loadConfig). */
+export interface IngestOptions {
+  /** Keep only listed files whose path passes this predicate; default keeps everything. */
+  readonly keep?: (path: string) => boolean;
+  /** Concurrent file reads. */
+  readonly readConcurrency: number;
+  /** Records per writeRaw batch. */
+  readonly batchSize: number;
+}
 
 /**
  * List → filter → read → parse → batch → write; returns the number of records written.
- * `keep` decides which listed files to ingest; default keeps everything.
  */
 export function ingest(
   source: DataSource,
   parser: Parser,
   sink: Sink,
-  keep: (path: string) => boolean = () => true,
+  options: IngestOptions,
 ): Effect.Effect<number, SourceError | SinkError> {
+  const keep = options.keep ?? (() => true);
   return source.list().pipe(
     Stream.filter((file: SourceFile) => keep(file.path)),
-    Stream.mapEffect((file) => source.read(file), { concurrency: READ_CONCURRENCY }),
+    Stream.mapEffect((file) => source.read(file), { concurrency: options.readConcurrency }),
     Stream.mapConcat(parser.parse),
-    Stream.grouped(BATCH_SIZE),
+    Stream.grouped(options.batchSize),
     Stream.mapEffect((batch) =>
       Effect.as(sink.writeRaw(Chunk.toReadonlyArray(batch)), batch.length),
     ),
@@ -62,7 +69,10 @@ export async function runIngestJob(job: IngestJob): Promise<void> {
         s.close().pipe(Effect.ignoreLogged),
       );
 
-      const landed = yield* ingest(source, job.parser, sink, job.keep);
+      const landed = yield* ingest(source, job.parser, sink, {
+        keep: job.keep,
+        ...config.ingest,
+      });
       yield* Console.log(`source "${source.name}" -> sink "${sink.name}": ${landed} raw records`);
     }),
   );

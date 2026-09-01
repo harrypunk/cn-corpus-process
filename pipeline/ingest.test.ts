@@ -40,7 +40,11 @@ describe("ingest", () => {
     const { sink, batches } = fakeSink();
 
     const n = await Effect.runPromise(
-      ingest(source, linesParser, sink, (path) => !path.includes("skip")),
+      ingest(source, linesParser, sink, {
+        keep: (path) => !path.includes("skip"),
+        readConcurrency: 2,
+        batchSize: 500,
+      }),
     );
 
     expect(n).toBe(2);
@@ -51,20 +55,23 @@ describe("ingest", () => {
     const source = fakeSource({ "corpus/a.json": "line1", "corpus/b.json": "line2" });
     const { sink, batches } = fakeSink();
 
-    const n = await Effect.runPromise(ingest(source, linesParser, sink));
+    const n = await Effect.runPromise(
+      ingest(source, linesParser, sink, { readConcurrency: 2, batchSize: 500 }),
+    );
 
     expect(n).toBe(2);
     expect(batches.flat()).toHaveLength(2);
   });
 
-  it("writes in batches of 500", async () => {
-    const lines = Array.from({ length: 1200 }, (_, i) => `line${i}`).join("\n");
-    const source = fakeSource({ "corpus/big.json": lines });
+  it("writes in batches of batchSize", async () => {
+    const source = fakeSource({ "corpus/big.json": "l1\nl2\nl3\nl4\nl5" });
     const { sink, batches } = fakeSink();
 
-    const n = await Effect.runPromise(ingest(source, linesParser, sink));
+    const n = await Effect.runPromise(
+      ingest(source, linesParser, sink, { readConcurrency: 1, batchSize: 2 }),
+    );
 
-    expect(n).toBe(1200);
-    expect(batches.map((b) => b.length)).toEqual([500, 500, 200]);
+    expect(n).toBe(5);
+    expect(batches.map((b) => b.length)).toEqual([2, 2, 1]);
   });
 });
