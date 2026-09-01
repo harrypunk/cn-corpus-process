@@ -115,7 +115,7 @@ job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest:wudai`）：list → �
 
 **设计**：事件流 + 广播订阅
 
-1. **事件类型**：`IngestEvent = FileListed | FileSkipped | FileRead | RecordsParsed(records) | FileFailed(path, message)`——数据事件携带记录，其余只带事实
+1. **事件类型**：`IngestEvent = FileListed | FileSkipped | RecordsParsed(records) | FileFailed(path, message)`——数据事件携带记录，其余只带事实
 2. **核心改造**：`ingest()` 产出 `Stream<IngestEvent, SourceError>`，各 stage 只负责发事件，不再直接调用 sink，也不感知"谁在听"（DIP）
 3. **订阅者**（各自一条独立 stream，`Stream.broadcast` 扇出、并发消费）：
    - `sinkWriter` — 收集 `RecordsParsed` 的记录，`grouped(batchSize)` → `writeRaw`

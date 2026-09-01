@@ -1,25 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { Effect, Stream } from "effect";
+import { Chunk, Effect, Stream } from "effect";
 import type { Parser } from "@src/parse/index.ts";
-import type { DataSource } from "@src/source/index.ts";
-import type { RawRecord, Sink } from "@src/store/index.ts";
-import { ingest } from "./ingest.ts";
-
-const fakeSource = (files: Record<string, string>): DataSource => ({
-  name: "fake",
-  list: () => Stream.fromIterable(Object.keys(files).map((path) => ({ path }))),
-  read: (file) => Effect.succeed(files[file.path] ?? ""),
-});
-
-const fakeSink = () => {
-  const batches: RawRecord[][] = [];
-  const sink: Sink = {
-    name: "fake",
-    writeRaw: (records) => Effect.sync(() => batches.push([...records])),
-    close: () => Effect.void,
-  };
-  return { sink, batches };
-};
+import { SourceError, type DataSource } from "@src/source/index.ts";
+import { ingestEvents } from "./ingest.ts";
 
 /** One record per non-empty line, so tests control record counts via fixture lines. */
 const linesParser: Parser = {
@@ -31,47 +14,66 @@ const linesParser: Parser = {
       .map((line) => ({ author: "", title: "", content: line })),
 };
 
-describe("ingest", () => {
-  it("filters listed paths, parses with the given parser, lands all records", async () => {
-    const source = fakeSource({
-      "corpus/a.json": "line1\nline2",
-      "corpus/skip.json": "line3",
-    });
-    const { sink, batches } = fakeSink();
+/** Paths present in `files` read fine; anything else fails like a missing file would. */
+const fakeSource = (files: Record<string, string>): DataSource => ({
+  name: "fake",
+  list: () => Stream.fromIterable(Object.keys(files).map((path) => ({ path }))),
+  read: (file) =>
+    file.path in files
+      ? Effect.succeed(files[file.path] ?? "")
+      : Effect.fail(
+          new SourceError({ source: "fake", operation: "read", message: "boom", path: file.path }),
+        ),
+});
 
-    const n = await Effect.runPromise(
-      ingest(source, linesParser, sink, {
-        keep: (path) => !path.includes("skip"),
-        readConcurrency: 2,
-        batchSize: 500,
-      }),
-    );
+const collect = (files: Record<string, string>, keep?: (path: string) => boolean) =>
+  Effect.runPromise(
+    Stream.runCollect(ingestEvents(fakeSource(files), linesParser, { keep, readConcurrency: 2 })),
+  ).then(Chunk.toReadonlyArray);
 
-    expect(n).toBe(2);
-    expect(batches.flat().map((r) => r.content)).toEqual(["line1", "line2"]);
+describe("ingestEvents", () => {
+  it("emits FileListed then RecordsParsed per kept file, in listing order", async () => {
+    const events = await collect({ "corpus/a.json": "l1\nl2", "corpus/b.json": "l3" });
+
+    expect(events.map((e) => e._tag)).toEqual([
+      "FileListed",
+      "RecordsParsed",
+      "FileListed",
+      "RecordsParsed",
+    ]);
+    const parsed = events.filter((e) => e._tag === "RecordsParsed");
+    expect(parsed.map((e) => e.records.length)).toEqual([2, 1]);
   });
 
-  it("keeps every listed file when no filter is given", async () => {
-    const source = fakeSource({ "corpus/a.json": "line1", "corpus/b.json": "line2" });
-    const { sink, batches } = fakeSink();
-
-    const n = await Effect.runPromise(
-      ingest(source, linesParser, sink, { readConcurrency: 2, batchSize: 500 }),
+  it("emits FileSkipped for filtered-out files without reading them", async () => {
+    const events = await collect(
+      { "corpus/a.json": "l1", "corpus/skip.json": "l2" },
+      (path) => !path.includes("skip"),
     );
 
-    expect(n).toBe(2);
-    expect(batches.flat()).toHaveLength(2);
+    expect(events.map((e) => e._tag)).toEqual(["FileListed", "RecordsParsed", "FileSkipped"]);
   });
 
-  it("writes in batches of batchSize", async () => {
-    const source = fakeSource({ "corpus/big.json": "l1\nl2\nl3\nl4\nl5" });
-    const { sink, batches } = fakeSink();
+  it("turns read failures into FileFailed events instead of failing the stream", async () => {
+    const source = fakeSource({ "corpus/a.json": "l1" });
+    const broken: DataSource = {
+      ...source,
+      list: () => Stream.fromIterable([{ path: "corpus/a.json" }, { path: "corpus/gone.json" }]),
+    };
 
-    const n = await Effect.runPromise(
-      ingest(source, linesParser, sink, { readConcurrency: 1, batchSize: 2 }),
+    const events = Chunk.toReadonlyArray(
+      await Effect.runPromise(
+        Stream.runCollect(ingestEvents(broken, linesParser, { readConcurrency: 1 })),
+      ),
     );
 
-    expect(n).toBe(5);
-    expect(batches.map((b) => b.length)).toEqual([2, 2, 1]);
+    expect(events.map((e) => e._tag)).toEqual([
+      "FileListed",
+      "RecordsParsed",
+      "FileListed",
+      "FileFailed",
+    ]);
+    const failed = events.find((e) => e._tag === "FileFailed");
+    expect(failed).toMatchObject({ file: { path: "corpus/gone.json" }, message: "boom" });
   });
 });

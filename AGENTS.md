@@ -24,8 +24,10 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 ## Layout
 
 - `pipeline/` — job entries (`bun run <job>`), one file per job; thin wiring only
-  (corpus dir + path filter + parser). The shared ingest pipeline lives in
-  `pipeline/ingest.ts`; jobs themselves have no tests.
+  (corpus dir + path filter + parser). The shared ingest core lives in
+  `pipeline/ingest.ts` (event producer + entry wiring), `pipeline/events.ts`
+  (event types) and `pipeline/observers.ts` (sink/metrics/log subscribers);
+  jobs themselves have no tests.
 - `src/source/` — DataSource layer: bytes→text (fs, gitea)
 - `src/parse/` — Parser layer: text→RawRecord, pure
 - `src/store/` — Sink layer: raw_records (pglite, tidb)
