@@ -60,7 +60,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 3. **parser** — 该语料的 JSON 结构
 4. **sink** — env 选择的落库实现
 
-现有 job：`ingest-wudai`（五代诗词：花间集 juan 文件 + 南唐 poetrys.json → `ciParser`）、`ingest-quantangshi`（全唐诗：poet.tang/poet.song + 三百首/补录 → `poemsParser`）、`ingest-songci`（宋词：ci.song.* + 宋词三百首 → `ciParser`）。
+现有 job：`ingest-wudai`（五代诗词：花间集 juan 文件 + 南唐 poetrys.json → `ciParser`）、`ingest-quantangshi`（全唐诗：poet.tang/poet.song + 三百首/补录 → `poemsParser`）、`ingest-songci`（宋词：ci.song.* + 宋词三百首 → `ciParser`）、`ingest-shuimotangshi`（水墨唐诗：shuimotangshi.json → `poemsParser`）。
 
 **Parser 接口**（`src/parse/types.ts`）——parser 只负责 JSON→原始记录，纯函数：
 
