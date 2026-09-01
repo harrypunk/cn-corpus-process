@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ingest": "bun pipeline/ingest-wudai.ts",
+    "ingest:wudai": "bun pipeline/ingest-wudai.ts",
     "ingest:quantangshi": "bun pipeline/ingest-quantangshi.ts",
     "ingest:songci": "bun pipeline/ingest-songci.ts",
     "ingest:shuimotangshi": "bun pipeline/ingest-shuimotangshi.ts",

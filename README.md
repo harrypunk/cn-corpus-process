@@ -17,11 +17,12 @@ parse 按目录结构解析出原始记录；sink 原样落库（ELT），后续
 ```sh
 cp .env.example .env   # 按需修改
 bun install
-bun run ingest         # job：列举 → 解析 → raw 记录落库
+bun run ingest:wudai   # job：列举 → 过滤 → 解析 → raw 记录落库（其它语料：ingest:<corpus>）
 bun run check          # lint + format + typecheck + test
 ```
 
-job 入口在 `pipeline/` 下，一个 job 一个文件（如 `pipeline/ingest.ts`）；`src/` 只放内部分层逻辑。
+job 入口在 `pipeline/` 下，一个语料目录一个文件（如 `pipeline/ingest-wudai.ts`），共享流水线在
+`pipeline/ingest.ts`；`src/` 只放内部分层逻辑。
 
 ## 数据源
 
@@ -43,8 +44,8 @@ gitea 实现只用到两个 REST 端点（`src/source/gitea.ts`；
 
 ## 解析与落库（Phase 2）
 
-`src/parse/` 按目录结构解析 JSON（`Parser` 接口，现有 `poemsParser` / `ciParser`）；
-无人认领的路径（rank/、strains/、loader/ 等元数据）跳过。
+`src/parse/` 按 JSON 结构解析（`Parser` 接口，现有 `poemsParser` / `ciParser`）；
+路径过滤在 job 里声明，rank/、strains/、loader/ 等元数据文件由此排除。
 
 原始记录写入 `raw_records(id, author, title, content)`——insert-only staging，重跑会重复，
 dedup 归 Phase 3。`ETL_SINK_KIND` 选择 sink（`src/store/`）：

@@ -15,7 +15,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 
 - [x] **Phase 1 — 数据源抽象**（fs / gitea）
 - [x] **Phase 2 — 原始记录落库**（parse + raw sinks：PGlite / TiDB；每个语料目录一个 ingest job）
-- [ ] **Phase 3 — ingest job 重构**（提取 ingest-* 公共部分，job 只留语料专属声明）
+- [x] **Phase 3 — ingest job 重构**（提取 ingest-* 公共部分，job 只留语料专属声明）
 - [ ] Phase 4 — 归一化（从 raw_records 读取；BOM/NFKC/繁简统一入口；写入结构化表）
 - [ ] Phase 5 — 派生数据（sentences 表、简体检索列）
 - [ ] Phase 6 — 检索与向量（关键词 + 语义混合召回）
@@ -47,7 +47,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 验证：
 
 - `bun test` — fs loader 用临时 fixture；gitea loader 用 `Bun.serve` 起本地桩，覆盖分页、过滤、鉴权头、BOM
-- `bun run ingest` — 冒烟：按当前 env 配置列出文件数与样例
+- `bun run ingest:wudai` — 冒烟：按当前 env 配置列出文件数与样例
 
 ## Phase 2 设计
 
@@ -79,7 +79,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `PgliteSink`（`src/store/pglite.ts`）— 嵌入式 Postgres（[PGlite](https://pglite.dev)，WASM），零服务依赖，默认数据目录 `./dist/pglite`
 - `TidbSink`（`src/store/tidb.ts`）— MySQL 协议（mysql2 + drizzle），`DATABASE_URL` 连接；`content longtext` 留足余量
 
-job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest`）：list → 路径过滤 → 并发读（8）→ parse → 每 500 条一批插入；`acquireRelease` 保证连接关闭。job 入口一个文件一个 job，`src/` 只放内部分层逻辑。
+job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest:wudai`）：list → 路径过滤 → 并发读（8）→ parse → 每 500 条一批插入；`acquireRelease` 保证连接关闭。job 入口一个文件一个 job，`src/` 只放内部分层逻辑。
 配置（env）：
 
 - `ETL_PATH_PREFIXES` — 逗号分隔的语料目录（空 = 整个 source），fs/gitea 通用
@@ -90,19 +90,15 @@ job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest`）：list → 路径�
 验证：
 
 - `bun test` — parser 各结构 fixture；ingest 用 fake source/sink 覆盖路径过滤与组合；pglite sink 临时目录验证 insert-only 语义
-- `bun run ingest` — 冒烟：按当前 env 配置跑通 ingest-wudai（五代诗词：花间集 + 南唐词）
+- `bun run ingest:wudai` — 冒烟：按当前 env 配置跑通 ingest-wudai（五代诗词：花间集 + 南唐词）
 
 ## Phase 3 设计
 
-**目标**：随着 ingest-tang、ingest-quan-song 等 job 增加，把 ingest-* 的公共部分提取到共享模块，job 文件只保留语料专属声明。
+**目标**：ingest-* 的公共部分提取到共享模块，job 文件只保留语料专属声明。
 
-现状：公共逻辑都在 `ingest-wudai.ts` 里——`ingest()` 主流水线（list → filter → 并发读 → parse → 分批写入）、`READ_CONCURRENCY` / `BATCH_SIZE`、`acquireRelease` 资源接线、错误处理与计数日志。第二个 job 出现时这些会原样复制。
+结果：公共核心在 `pipeline/ingest.ts`——`ingest()` 主流水线（list → filter → 并发读 8 → parse → 每 500 条一批写入）、`runIngestJob()` 入口骨架（loadConfig → source/sink 组合 → `acquireRelease` 清理 → 计数日志）。job 文件只声明三条：corpus dir、路径谓词、parser，加 `if (import.meta.main)` 一行调用。
 
-提取方向：
-
-- 共享 ingest 核心（流水线 + 资源接线 + 入口骨架）下沉为一个模块，job 只声明：prefix、路径谓词、parser
-- job 文件目标形态：几条常量 + 一次调用，不含 Stream 组装细节
-- 同步更新 `bun run <job>` 脚本与测试（公共核心用 fake source/sink；job 只测各自的路径谓词）
+测试：核心用 fake source/sink 覆盖（过滤、parse、分批、计数）；job 是无逻辑的薄入口，不配测试。
 
 ## 已定原则（后续阶段遵守）
 

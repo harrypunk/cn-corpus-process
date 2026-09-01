@@ -18,12 +18,14 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - Runtime: **Bun** (TypeScript, ESM, `.ts` import extensions)
 - Core libs: **Effect** (Stream/Effect/Data.TaggedError), drizzle-orm, opencc-js
 - `bun install` — install deps
-- `bun run ingest` — run the ingest job (entry `pipeline/ingest.ts`)
+- `bun run ingest:<corpus>` — run one ingest job (entries `pipeline/ingest-*.ts`)
 - `bun run check` — **must stay green**: oxlint + oxfmt + tsc --noEmit + bun test
 
 ## Layout
 
 - `pipeline/` — job entries (`bun run <job>`), one file per job; thin wiring only
+  (corpus dir + path filter + parser). The shared ingest pipeline lives in
+  `pipeline/ingest.ts`; jobs themselves have no tests.
 - `src/source/` — DataSource layer: bytes→text (fs, gitea)
 - `src/parse/` — Parser layer: text→RawRecord, pure
 - `src/store/` — Sink layer: raw_records (pglite, tidb)
