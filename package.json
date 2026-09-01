@@ -5,6 +5,7 @@
   "scripts": {
     "ingest": "bun pipeline/ingest-wudai.ts",
     "ingest:quantangshi": "bun pipeline/ingest-quantangshi.ts",
+    "ingest:songci": "bun pipeline/ingest-songci.ts",
     "lint": "oxlint src pipeline",
     "lint:fix": "oxlint --fix src pipeline",
     "format": "oxfmt src pipeline",
