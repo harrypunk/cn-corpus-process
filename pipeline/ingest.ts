@@ -106,7 +106,9 @@ export async function runIngestJob(job: IngestJob): Promise<void> {
         [
           sinkWriter(sink, config.ingest.batchSize)(Stream.flattenTake(Stream.fromQueue(toSink))),
           metricsCollector(Stream.flattenTake(Stream.fromQueue(toMetrics))),
-          progressLogger(Stream.flattenTake(Stream.fromQueue(toLog))),
+          progressLogger(Stream.flattenTake(Stream.fromQueue(toLog)), {
+            interval: config.ingest.logInterval,
+          }),
         ],
         { concurrency: "unbounded" },
       );

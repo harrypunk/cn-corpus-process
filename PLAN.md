@@ -86,6 +86,7 @@ job 入口（`pipeline/ingest-wudai.ts`，`bun run ingest:wudai`）：list → �
 - `ETL_PATH_PREFIXES` — 逗号分隔的语料目录（空 = 整个 source），fs/gitea 通用
 - `ETL_READ_CONCURRENCY`（默认 8）— 并发读文件数
 - `ETL_BATCH_SIZE`（默认 500）— 每批写入 raw_records 的记录数
+- `ETL_LOG_INTERVAL`（默认 100）— 每处理 N 个文件打一行进度日志
 - `ETL_SINK_KIND=pglite|tidb`（默认 `pglite`）
 - pglite：`PGLITE_DATA_DIR`（默认 `./dist/pglite`）
 - tidb：`DATABASE_URL`（如 `mysql://user:pass@host:4000/dbname`）

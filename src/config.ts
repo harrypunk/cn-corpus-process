@@ -39,6 +39,8 @@ export interface IngestConfig {
   readonly readConcurrency: number;
   /** Records per writeRaw batch. */
   readonly batchSize: number;
+  /** Log one progress line per this many processed files. */
+  readonly logInterval: number;
 }
 
 export interface AppConfig {
@@ -115,6 +117,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     ingest: {
       readConcurrency: positiveInt(env, "ETL_READ_CONCURRENCY", 8),
       batchSize: positiveInt(env, "ETL_BATCH_SIZE", 500),
+      logInterval: positiveInt(env, "ETL_LOG_INTERVAL", 100),
     },
   };
 }

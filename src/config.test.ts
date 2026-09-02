@@ -81,10 +81,11 @@ describe("loadConfig", () => {
     );
   });
 
-  it("defaults ingest tuning to 8 / 500", () => {
+  it("defaults ingest tuning to 8 / 500 / 100", () => {
     expect(loadConfig({ POETRY_ROOT: "/data" }).ingest).toEqual({
       readConcurrency: 8,
       batchSize: 500,
+      logInterval: 100,
     });
   });
 
@@ -93,8 +94,9 @@ describe("loadConfig", () => {
       POETRY_ROOT: "/data",
       ETL_READ_CONCURRENCY: "16",
       ETL_BATCH_SIZE: "1000",
+      ETL_LOG_INTERVAL: "50",
     });
-    expect(config.ingest).toEqual({ readConcurrency: 16, batchSize: 1000 });
+    expect(config.ingest).toEqual({ readConcurrency: 16, batchSize: 1000, logInterval: 50 });
   });
 
   it("rejects non-positive ingest tuning", () => {
@@ -103,6 +105,9 @@ describe("loadConfig", () => {
     );
     expect(() => loadConfig({ POETRY_ROOT: "/data", ETL_READ_CONCURRENCY: "x" })).toThrow(
       "ETL_READ_CONCURRENCY",
+    );
+    expect(() => loadConfig({ POETRY_ROOT: "/data", ETL_LOG_INTERVAL: "-1" })).toThrow(
+      "ETL_LOG_INTERVAL",
     );
   });
 });

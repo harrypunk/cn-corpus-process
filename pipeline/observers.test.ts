@@ -64,9 +64,14 @@ describe("metricsCollector", () => {
 });
 
 describe("progressLogger", () => {
-  const collectLogs = async (events: Stream.Stream<IngestEvent>): Promise<string[]> => {
+  const collectLogs = async (
+    events: Stream.Stream<IngestEvent>,
+    interval = 100,
+  ): Promise<string[]> => {
     const logs: string[] = [];
-    await Effect.runPromise(progressLogger(events, (msg) => Effect.sync(() => logs.push(msg))));
+    await Effect.runPromise(
+      progressLogger(events, { interval, log: (msg) => Effect.sync(() => logs.push(msg)) }),
+    );
     return logs;
   };
 
@@ -81,13 +86,13 @@ describe("progressLogger", () => {
     expect(logs).toEqual(["FAIL b: boom"]);
   });
 
-  it("logs a progress line every 100 processed files", async () => {
+  it("logs a progress line every `interval` processed files", async () => {
     const events = Stream.fromIterable<IngestEvent>(
-      Array.from({ length: 200 }, (_, i) => parsed(`f${i}`, ["l"])),
+      Array.from({ length: 5 }, (_, i) => parsed(`f${i}`, ["l"])),
     );
 
-    const logs = await collectLogs(events);
+    const logs = await collectLogs(events, 2);
 
-    expect(logs).toEqual(["100 files processed", "200 files processed"]);
+    expect(logs).toEqual(["2 files processed", "4 files processed"]);
   });
 });

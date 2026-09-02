@@ -71,27 +71,47 @@ export function metricsCollector(events: EventStream): Effect.Effect<IngestMetri
   return Stream.runFold(events, zeroMetrics, reduce);
 }
 
-const LOG_EVERY = 100;
+/** A line to log, when an event warrants one. */
+type LogLine = Option.Option<string>;
 
-/** Log failures immediately and a progress line every LOG_EVERY processed files. */
+/** One mapAccum step: files processed so far, plus the line to log for this event. */
+type Progress = readonly [processed: number, line: LogLine];
+
+/** What to log for one event: failures immediately, progress every logInterval processed files. */
+function progressStep(logInterval: number, processed: number, e: IngestEvent): Progress {
+  if (e._tag === "FileFailed") {
+    const line: LogLine = Option.some(`FAIL ${e.file.path}: ${e.message}`);
+    return [processed + 1, line];
+  }
+  if (e._tag === "RecordsParsed") {
+    const nowProcessed = processed + 1;
+    const line: LogLine =
+      nowProcessed % logInterval === 0
+        ? Option.some(`${nowProcessed} files processed`)
+        : Option.none();
+    return [nowProcessed, line];
+  }
+  return [processed, Option.none()];
+}
+
+/** Where log lines go; defaults to the console, injectable for tests. */
+type LogSink = (msg: string) => Effect.Effect<void>;
+
+export interface ProgressLoggerOptions {
+  /** Log one progress line per this many processed files (env: ETL_LOG_INTERVAL). */
+  readonly interval: number;
+  /** Defaults to the console. */
+  readonly log?: LogSink;
+}
+
+/** Log failures immediately and a progress line every `interval` processed files. */
 export function progressLogger(
   events: EventStream,
-  log: (msg: string) => Effect.Effect<void> = Console.log,
+  options: ProgressLoggerOptions,
 ): Effect.Effect<void, SourceError> {
+  const log = options.log ?? Console.log;
   return events.pipe(
-    Stream.mapAccum(
-      0,
-      (processed: number, e: IngestEvent): readonly [number, Option.Option<string>] => {
-        if (e._tag === "FileFailed") {
-          return [processed + 1, Option.some(`FAIL ${e.file.path}: ${e.message}`)];
-        }
-        if (e._tag === "RecordsParsed") {
-          const n = processed + 1;
-          return [n, n % LOG_EVERY === 0 ? Option.some(`${n} files processed`) : Option.none()];
-        }
-        return [processed, Option.none()];
-      },
-    ),
+    Stream.mapAccum(0, (processed, e) => progressStep(options.interval, processed, e)),
     Stream.filterMap((msg) => msg),
     Stream.mapEffect(log),
     Stream.runDrain,
