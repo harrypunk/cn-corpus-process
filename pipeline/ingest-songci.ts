@@ -3,6 +3,7 @@
  * Thin entry: declares corpus dir, path filter, parser — the pipeline lives in ./ingest.ts.
  */
 
+import { Corpus } from "@src/corpus.ts";
 import { ciParser } from "@src/parse/index.ts";
 import { runIngestJob } from "./ingest.ts";
 
@@ -23,5 +24,10 @@ function isSongciVerse(path: string): boolean {
 }
 
 if (import.meta.main) {
-  await runIngestJob({ corpusDir: SONGCI_DIR, keep: isSongciVerse, parser: ciParser });
+  await runIngestJob({
+    corpusDir: SONGCI_DIR,
+    corpusId: Corpus.SONGCI,
+    keep: isSongciVerse,
+    parser: ciParser,
+  });
 }

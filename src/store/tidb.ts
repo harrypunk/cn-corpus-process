@@ -1,4 +1,4 @@
-import { bigint, longtext, mysqlTable, varchar } from "drizzle-orm/mysql-core";
+import { bigint, int, longtext, mysqlTable, varchar } from "drizzle-orm/mysql-core";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { Effect } from "effect";
@@ -6,6 +6,7 @@ import { sinkError, type Sink, type SinkError } from "./types.ts";
 
 const rawRecords = mysqlTable("raw_records", {
   id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  corpusId: int("corpus_id").notNull(),
   author: varchar("author", { length: 191 }).notNull(),
   title: varchar("title", { length: 512 }).notNull(),
   // longtext: whole poems are small, but raw staging should never reject content
@@ -15,6 +16,7 @@ const rawRecords = mysqlTable("raw_records", {
 const DDL = `
 CREATE TABLE IF NOT EXISTS raw_records (
   id bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  corpus_id int NOT NULL,
   author varchar(191) NOT NULL,
   title varchar(512) NOT NULL,
   content longtext NOT NULL

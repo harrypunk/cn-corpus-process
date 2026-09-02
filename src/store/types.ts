@@ -1,10 +1,16 @@
 import { Data, Effect } from "effect";
+import type { CorpusId } from "@src/corpus.ts";
 
-/** One poem/prose record as parsed from source JSON, before any cleansing. */
-export interface RawRecord {
+/** Record fields as parsed from source JSON, before any cleansing or provenance. */
+export interface ParsedRecord {
   readonly author: string;
   readonly title: string;
   readonly content: string;
+}
+
+/** A ParsedRecord stamped with its corpus ID (see src/corpus.ts) — the raw_records row shape. */
+export interface RawRecord extends ParsedRecord {
+  readonly corpusId: CorpusId;
 }
 
 export type SinkOperation = "init" | "write" | "close";

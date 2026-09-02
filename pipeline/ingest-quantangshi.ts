@@ -3,6 +3,7 @@
  * Thin entry: declares corpus dir, path filter, parser — the pipeline lives in ./ingest.ts.
  */
 
+import { Corpus } from "@src/corpus.ts";
 import { poemsParser } from "@src/parse/index.ts";
 import { runIngestJob } from "./ingest.ts";
 
@@ -23,5 +24,10 @@ function isQuantangshiVerse(path: string): boolean {
 }
 
 if (import.meta.main) {
-  await runIngestJob({ corpusDir: QUANTANGSHI_DIR, keep: isQuantangshiVerse, parser: poemsParser });
+  await runIngestJob({
+    corpusDir: QUANTANGSHI_DIR,
+    corpusId: Corpus.QUANTANGSHI,
+    keep: isQuantangshiVerse,
+    parser: poemsParser,
+  });
 }

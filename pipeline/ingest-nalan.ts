@@ -3,6 +3,7 @@
  * Thin entry: declares corpus dir, path filter, parser — the pipeline lives in ./ingest.ts.
  */
 
+import { Corpus } from "@src/corpus.ts";
 import { mappedParser } from "@src/parse/index.ts";
 import { runIngestJob } from "./ingest.ts";
 
@@ -15,6 +16,7 @@ const parser = mappedParser("nalan", { title: "title", paragraphs: "para" });
 if (import.meta.main) {
   await runIngestJob({
     corpusDir: NALAN_DIR,
+    corpusId: Corpus.NALAN,
     keep: (path) => path === `${NALAN_DIR}/纳兰性德诗集.json`,
     parser,
   });

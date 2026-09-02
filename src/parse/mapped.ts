@@ -1,4 +1,4 @@
-import type { RawRecord } from "@src/store/types.ts";
+import type { ParsedRecord } from "@src/store/types.ts";
 import { joinLines, parseObjectArray, str } from "./json.ts";
 import type { Parser } from "./types.ts";
 
@@ -23,7 +23,7 @@ export function mappedParser(name: string, m: FieldMapping): Parser {
 
   return {
     name,
-    parse: (text): RawRecord[] =>
+    parse: (text): ParsedRecord[] =>
       parseObjectArray(text).map((r) => ({
         author: str(r[authorField]) || (m.defaultAuthor ?? ""),
         title: titleFields

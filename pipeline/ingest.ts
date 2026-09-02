@@ -7,6 +7,7 @@
 
 import { Console, Effect, Stream } from "effect";
 import { loadConfig } from "@src/config.ts";
+import type { CorpusId } from "@src/corpus.ts";
 import type { Parser } from "@src/parse/index.ts";
 import {
   createSource,
@@ -27,6 +28,8 @@ export interface IngestEventsOptions {
   readonly keep?: (path: string) => boolean;
   /** Concurrent file reads. */
   readonly readConcurrency: number;
+  /** Corpus ID stamped onto every parsed record (the raw_records.corpus_id column). */
+  readonly corpusId: CorpusId;
 }
 
 /**
@@ -44,7 +47,11 @@ export function ingestEvents(
   const readAndParse = (file: SourceFile): Effect.Effect<readonly IngestEvent[]> =>
     source.read(file).pipe(
       Effect.map((text): readonly IngestEvent[] => [
-        { _tag: "RecordsParsed", file, records: parser.parse(text) },
+        {
+          _tag: "RecordsParsed",
+          file,
+          records: parser.parse(text).map((r) => ({ ...r, corpusId: options.corpusId })),
+        },
       ]),
       Effect.catchAll((error): Effect.Effect<readonly IngestEvent[]> =>
         Effect.succeed([{ _tag: "FileFailed", file, message: error.message }]),
@@ -70,6 +77,8 @@ export function ingestEvents(
 export interface IngestJob {
   /** Corpus dir the job is scoped to (source listing prefix). */
   readonly corpusDir: string;
+  /** Stable corpus ID stamped into raw_records.corpus_id (see src/corpus.ts). */
+  readonly corpusId: CorpusId;
   /** Keep only listed files whose path passes this predicate. */
   readonly keep: (path: string) => boolean;
   /** Parser for the corpus' JSON structure. */
@@ -98,6 +107,7 @@ export async function runIngestJob(job: IngestJob): Promise<void> {
       const events = ingestEvents(source, job.parser, {
         keep: job.keep,
         readConcurrency: config.ingest.readConcurrency,
+        corpusId: job.corpusId,
       });
 
       // One producer, three independent subscribers.

@@ -74,7 +74,7 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - `writeRaw(records): Effect<void, SinkError>` — 批量插入
 - `close(): Effect<void, SinkError>` — 释放连接
 
-表：`raw_records(id, author, title, content)`。**insert-only staging**：此阶段没有天然主键，重跑会重复——dedup 归归一化阶段。
+表：`raw_records(id, corpus_id, author, title, content)`。`corpus_id` 是语料整数 ID（常量见 `src/corpus.ts`——自定义分类，与上游仓库目录名/文本无关，由 job 声明），供后续阶段按语料分类（朝代归属、空作者、句式特异等规则）。**insert-only staging**：此阶段没有天然主键，重跑会重复——dedup 归归一化阶段。
 
 实现：
 

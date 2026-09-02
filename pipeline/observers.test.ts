@@ -4,7 +4,12 @@ import type { RawRecord, Sink } from "@src/store/index.ts";
 import type { IngestEvent } from "./events.ts";
 import { metricsCollector, progressLogger, sinkWriter } from "./observers.ts";
 
-const record = (content: string): RawRecord => ({ author: "", title: "", content });
+const record = (content: string): RawRecord => ({
+  author: "",
+  title: "",
+  content,
+  corpusId: 1,
+});
 
 const parsed = (path: string, contents: string[]): IngestEvent => ({
   _tag: "RecordsParsed",

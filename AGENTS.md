@@ -29,9 +29,10 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
   (event types) and `pipeline/observers.ts` (sink/metrics/log subscribers);
   jobs themselves have no tests.
 - `src/source/` — DataSource layer: bytes→text (fs, gitea)
-- `src/parse/` — Parser layer: text→RawRecord, pure
+- `src/parse/` — Parser layer: text→ParsedRecord, pure
 - `src/store/` — Sink layer: raw_records (pglite, tidb)
 - `src/config.ts` — env config, the only module that reads `process.env`
+- `src/corpus.ts` — corpus ID taxonomy stamped as raw_records.corpus_id
 
 Imports: cross-directory via the `@src/*` alias (tsconfig `paths`), same-directory stays
 relative (`./foo.ts`).

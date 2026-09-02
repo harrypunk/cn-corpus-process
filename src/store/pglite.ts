@@ -1,11 +1,12 @@
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { bigserial, pgTable, text } from "drizzle-orm/pg-core";
+import { bigserial, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { Effect } from "effect";
 import { sinkError, type Sink, type SinkError } from "./types.ts";
 
 const rawRecords = pgTable("raw_records", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
+  corpusId: integer("corpus_id").notNull(),
   author: text("author").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),
@@ -14,6 +15,7 @@ const rawRecords = pgTable("raw_records", {
 const DDL = `
 CREATE TABLE IF NOT EXISTS raw_records (
   id bigserial PRIMARY KEY,
+  corpus_id integer NOT NULL,
   author text NOT NULL,
   title text NOT NULL,
   content text NOT NULL

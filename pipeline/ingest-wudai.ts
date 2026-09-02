@@ -3,6 +3,7 @@
  * Thin entry: declares corpus dir, path filter, parser — the pipeline lives in ./ingest.ts.
  */
 
+import { Corpus } from "@src/corpus.ts";
 import { ciParser } from "@src/parse/index.ts";
 import { runIngestJob } from "./ingest.ts";
 
@@ -23,5 +24,10 @@ function isWudaiVerse(path: string): boolean {
 }
 
 if (import.meta.main) {
-  await runIngestJob({ corpusDir: WUDAI_DIR, keep: isWudaiVerse, parser: ciParser });
+  await runIngestJob({
+    corpusDir: WUDAI_DIR,
+    corpusId: Corpus.WUDAI,
+    keep: isWudaiVerse,
+    parser: ciParser,
+  });
 }

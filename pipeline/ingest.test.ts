@@ -28,7 +28,9 @@ const fakeSource = (files: Record<string, string>): DataSource => ({
 
 const collect = (files: Record<string, string>, keep?: (path: string) => boolean) =>
   Effect.runPromise(
-    Stream.runCollect(ingestEvents(fakeSource(files), linesParser, { keep, readConcurrency: 2 })),
+    Stream.runCollect(
+      ingestEvents(fakeSource(files), linesParser, { keep, readConcurrency: 2, corpusId: 1 }),
+    ),
   ).then(Chunk.toReadonlyArray);
 
 describe("ingestEvents", () => {
@@ -43,6 +45,7 @@ describe("ingestEvents", () => {
     ]);
     const parsed = events.filter((e) => e._tag === "RecordsParsed");
     expect(parsed.map((e) => e.records.length)).toEqual([2, 1]);
+    expect(parsed.flatMap((e) => e.records.map((r) => r.corpusId))).toEqual([1, 1, 1]);
   });
 
   it("emits FileSkipped for filtered-out files without reading them", async () => {
@@ -63,7 +66,7 @@ describe("ingestEvents", () => {
 
     const events = Chunk.toReadonlyArray(
       await Effect.runPromise(
-        Stream.runCollect(ingestEvents(broken, linesParser, { readConcurrency: 1 })),
+        Stream.runCollect(ingestEvents(broken, linesParser, { readConcurrency: 1, corpusId: 1 })),
       ),
     );
 
