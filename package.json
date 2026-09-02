@@ -11,6 +11,7 @@
     "ingest:chuci": "bun pipeline/ingest-chuci.ts",
     "ingest:nalan": "bun pipeline/ingest-nalan.ts",
     "ingest:shijing": "bun pipeline/ingest-shijing.ts",
+    "ingest:all": "bun run ingest:wudai && bun run ingest:quantangshi && bun run ingest:songci && bun run ingest:shuimotangshi && bun run ingest:caocao && bun run ingest:chuci && bun run ingest:nalan && bun run ingest:shijing",
     "lint": "oxlint src pipeline",
     "lint:fix": "oxlint --fix src pipeline",
     "format": "oxfmt src pipeline",

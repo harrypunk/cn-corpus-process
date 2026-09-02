@@ -18,6 +18,7 @@ parse 按目录结构解析出原始记录；sink 原样落库（ELT），后续
 cp .env.example .env   # 按需修改
 bun install
 bun run ingest:wudai   # job：列举 → 过滤 → 解析 → raw 记录落库（其它语料：ingest:<corpus>）
+bun run ingest:all     # 顺序跑全部 ingest job，失败即停
 bun run check          # lint + format + typecheck + test
 ```
 
