@@ -16,10 +16,11 @@ source(字节→文本) → parse(JSON→原始记录) → sink(raw 落库) → 
 - [x] **Phase 1 — 数据源抽象**（fs / gitea）
 - [x] **Phase 2 — 原始记录落库**（parse + raw sinks：PGlite / TiDB；每个语料目录一个 ingest job）
 - [x] **Phase 3 — ingest job 重构**（提取 ingest-* 公共部分，job 只留语料专属声明）
-- [ ] **Phase 4 — 横切关注**（ingest 日志/指标/报告：事件流 + 独立订阅 stream）
+- [x] **Phase 4 — 横切关注**（ingest 日志/指标/报告：事件流 + 独立订阅 stream）
 - [ ] Phase 5 — 归一化（从 raw_records 读取；BOM/NFKC/繁简统一入口；写入结构化表）
 - [ ] Phase 6 — 派生数据（sentences 表、简体检索列）
 - [ ] Phase 7 — 检索与向量（关键词 + 语义混合召回）
+- [ ] Phase 8 — staging 清理（`bun run clean`：清空 raw_records 供重跑——pglite 删数据目录、tidb TRUNCATE。raw 层维持 insert-only，不做内容哈希：归一化后仍可能产生新重复，且跨语料重复本身合法；dedup 归 Phase 5，幂等键留给 Phase 6 结构化表）
 
 ## Phase 1 设计
 
